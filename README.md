@@ -4,7 +4,7 @@ November 2015
 
 ## Background
 
-One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+People that are into tracking their personal data with a Jawbone Up, Nike FuelBand, Fitbit or whatever activity tracker they use regularly quantify how much of a particular activity they do.  However, they rarely quantify the quality of how they conduct these activities. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
 
 ## Files
 
@@ -16,3 +16,12 @@ One thing that people regularly do is quantify how much of a particular activity
   <li>tdb</li>
   <li>tbd</li>
 </ul>
+
+## Project Work Breakdown Structure (WBS)
+
+# Clean and Tidy the Data
+# Exploratory Data Analysis (EDA)
+# Feature Selection
+# Algorithm & Model Exploration
+# Final Parameterization
+# Evaluation
