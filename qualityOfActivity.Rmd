@@ -115,7 +115,22 @@ pred.cart.test.cases <- predict(mod02.cart, newdata = test.cases)
 ```
 
 ```{r rfTrainTest, cache=TRUE, echo=FALSE, eval=FALSE}
-###### RUN OVERNIGHT AS THIS VERY TIME CONSUMINT > 3 HRS.!!! #######
+# MODEL 3) Try a random forrest classifier
+#cat(format(Sys.time(), "%T"), "building RF model started...\n")
+mod03.rf <- train(classe ~ ., method='rf', prox=TRUE, data=training)
+# above line took ~190 min's on my Xeon 16Gb workstation to complete
+# and gave an in-sample error of < 0.3%
+#cat(format(Sys.time(), "%T"), "building RF model FINISHED!\n")
+# calc in-sample and out-of-sample error
+pred.rf.insample <- predict(mod03.rf, newdata = training)
+pred.rf.oosample <- predict(mod03.rf, newdata = testing)
+acc.rf.insample <- sum(pred.rf.insample == training$classe) / length(training$classe)
+acc.rf.oosample <- sum(pred.rf.oosample == testing$classe) / length(testing$classe)
+
+# read the test cases and predict them
+pred.rf.test.cases <- predict(mod03.rf, newdata = test.cases)
+# > pred.rf.test.cases
+# [1] B A B A A E D B A A B C B A E E A B B B
 ```
 
 ```{r gbmTrainTest, cache=TRUE, echo=FALSE}
@@ -145,7 +160,7 @@ pred.gbm.test.cases <- predict(mod04.gbm, newdata = test.cases)
 # [1] B A B A A E D B A A B C B A E E A B B B
 ```
 
-A Generalized Boosted Regression Model (GBM) was selected and then used to successfully predict each of 20 test cases.  The GBM was selected from 3 other models: Linear Discriminant Analysis (LDA), Recursive Partitioning and Regression Tree (RPART), and Random Forrest.  The LDA and RPART models were eliminated due to high in-sample error rates (`r 100*(1-round(acc.lda.insample, 3))`% and `r 100*(1-round(acc.cart.insample, 3))`% respectively).  The RF model had slightly better in-sample error rate compared to GBM (??% vs. `r 100*(1-round(acc.gbm.insample, 3))`% for GBM), but the RF model took over 190 minutes to train using default caret setting while the GBM only took 13 minutes using 5 repeats of 5-fold cross-validation.  The out-of-sample error rate estimated from the testing hold-outs for the GBM model was `r 100*(1-round(acc.gbm.oosample, 3))`%.
+A Generalized Boosted Regression Model (GBM) was selected and then used to successfully predict each of 20 final validation test cases.  The GBM was selected from 3 other models: Linear Discriminant Analysis (LDA), Recursive Partitioning and Regression Tree (RPART), and Random Forrest.  The LDA and RPART models were eliminated due to high in-sample error rates (`r 100*(1-round(acc.lda.insample, 3))`% and `r 100*(1-round(acc.cart.insample, 3))`% respectively).  The RF model had slightly better in-sample error rate compared to GBM (`r 100*(1-round(acc.rf.insample, 3))`% vs. `r 100*(1-round(acc.gbm.insample, 3))`% for GBM), but the RF model took over 190 minutes to train using default caret setting while the GBM only took 13 minutes using 5 repeats of 5-fold cross-validation.  The out-of-sample error rates estimated from the testing hold-outs for the GBM and RF models were `r 100*(1-round(acc.gbm.oosample, 3))`% and `r 100*(1-round(acc.rf.oosample, 3))`% respectively.  The GDM was deemed good enough to use on the validation test set.
 
 The code behind all the calculations can be found in [this RMarkdown file](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/qualityOfActivity.Rmd).
 
@@ -158,7 +173,7 @@ suppressMessages(suppressWarnings(library(dplyr)))
 suppressMessages(suppressWarnings(library(ggplot2)))
 suppressMessages(suppressWarnings(library(lattice)))
 library(caret); library(dplyr)
-file <- "pml-training.csv"
+file <- "https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv"
 rawActitivity <- read.csv(file)
 ```
 
