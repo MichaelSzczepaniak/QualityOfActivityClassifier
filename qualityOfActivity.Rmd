@@ -7,4 +7,327 @@ output: html_document
 
 ## Background
 
-Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+People that are into tracking their personal data with a Jawbone Up, Nike FuelBand, Fitbit or whatever activity tracker they use regularly quantify how much of a particular activity they do.  However, they rarely quantify the quality of how they conduct these activities. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Synposis
+
+```{r readExternalData, cache=TRUE, echo=FALSE}
+trainFile <- "https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv"
+testFile <- "https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv"
+rawActitivity <- read.csv(trainFile)
+test.cases <- read.csv(testFile)  # final test cases
+```
+
+
+```{r trimVariables, cache=TRUE, echo=FALSE}
+suppressMessages(suppressWarnings(library(caret)))
+suppressMessages(suppressWarnings(library(dplyr)))
+suppressMessages(suppressWarnings(library(knitr)))
+
+## Creates a data frame based on the input df with three columns:
+## index, ColumnName and FractionMissing.
+## index is the column index in df corresponding to ColumnName
+## ColumnName is as the name implies: the name the column in df
+## FractionMissing is the fraction of values that are missing or NA.
+## The closer this value is to 1, the less data the column contains
+getFractionMissing <- function(df = rawActitivity) {
+    colCount <- ncol(df)
+    returnDf <- data.frame(index=1:ncol(df),
+                           columnName=rep("undefined", colCount),
+                           FractionMissing=rep(-1, colCount),
+                           stringsAsFactors=FALSE)
+    for(i in 1:colCount) {
+        colVector <- df[,i]
+        missingCount <- length(which(colVector == "") * 1)
+        missingCount <- missingCount + sum(is.na(colVector) * 1)
+        returnDf$columnName[i] <- as.character(names(df)[i])
+        returnDf$FractionMissing[i] <- missingCount / length(colVector)
+    }
+    
+    return(returnDf)
+}
+
+library(caret); library(dplyr)
+varsDf <- getFractionMissing()
+# get column/var names with > 80% of values not empty or NA
+varsWithData <- filter(varsDf, FractionMissing < 0.20)$columnName
+# varsWithLittleData <- filter(varsDf, FractionMissing > 0.90)$columnName
+# http://stackoverflow.com/questions/10086494#10086494
+trimmedActivity <- subset(rawActitivity, select=varsWithData)
+# This eliminated 100 out of the 160 vars. Turns out that these same
+# 100 var's aren't populated at all in test set which makes it a
+# no-brainer to pitch them.
+offset = 6; classDesignatorCol <- ncol(trimmedActivity) # last col is class
+# convert new_window from factor to int
+trimmedActivity$new_window <- as.integer(trimmedActivity$new_window)
+correlationMatrix <- cor(trimmedActivity[, (offset+1):classDesignatorCol-1])
+#print(correlationMatrix)
+# find attributes that are highly corrected (ideally > 0.75)
+highlyCorrelated <- sort(findCorrelation(correlationMatrix, cutoff=0.75))
+highlyCorrelated <- highlyCorrelated + offset # get cols relative to trimmed df
+trimmedActivity2 <- trimmedActivity[,-highlyCorrelated] # remove highly cor vars
+trimmedActivity2 <- trimmedActivity2[,-1] # 1st col is just an index
+trimmedActivity3 <- trimmedActivity2[,-4:-2] # remove time stamp info
+# remove user_name and new_window after looking at importance plot (see below)
+trimmedActivity3 <- trimmedActivity3[,-1] # remove user_name
+trimmedActivity3 <- trimmedActivity3[,-1] # remove new_window
+```
+
+```{r ldaTrainTest, cache=TRUE, echo=FALSE}
+# MODEL 1) Start with fast and simple LDA model using caret training defaults
+set.seed(1447)
+inTrain <- createDataPartition(trimmedActivity3$classe, p=0.60, list=FALSE)
+training <- trimmedActivity3[inTrain,]
+testing <- trimmedActivity3[-inTrain,]
+startTime <- Sys.time()
+#cat(format(startTime, "%T"), "building LDA model started...\n")
+mod01.lda <- train(classe ~ ., method='lda', data=training) # about 6 sec's
+endTime <- Sys.time()
+#cat(format(endTime, "%T"), "building LDA model FINISHED!\n")
+time.lda.seconds <- endTime - startTime
+# calc in-sample and out-of-sample error
+pred.lda.insample <- predict(mod01.lda, newdata = training)
+pred.lda.oosample <- predict(mod01.lda, newdata = testing)
+acc.lda.insample <- sum(pred.lda.insample == training$classe) / length(training$classe)
+acc.lda.oosample <- sum(pred.lda.oosample == testing$classe) / length(testing$classe)
+# predict test cases
+pred.lda.test.cases <- predict(mod01.lda, newdata = test.cases)
+# > pred01.lda.test.cases
+# [1] B A A A C C D D A A D A B A E B A B A B
+```
+
+```{r rpartTrainTest, cache=TRUE, echo=FALSE}
+suppressMessages(suppressWarnings(library(rpart)))
+# MODEL 2) Try a classification tree using caret training defaults
+#cat(format(Sys.time(), "%T"), "building CART model started...\n")
+mod02.cart <- train(classe ~ ., method='rpart', data=training) # about 9 sec's
+#cat(format(Sys.time(), "%T"), "building CART model FINISHED!\n")
+# calc in-sample and out-of-sample error
+pred.cart.insample <- predict(mod02.cart, newdata = training)
+pred.cart.oosample <- predict(mod02.cart, newdata = testing)
+acc.cart.insample <- sum(pred.cart.insample == training$classe) / length(training$classe)
+acc.cart.oosample <- sum(pred.cart.oosample == testing$classe) / length(testing$classe)
+
+# predict test cases
+pred.cart.test.cases <- predict(mod02.cart, newdata = test.cases)
+# > pred.cart.test.cases
+#  [1] E C A A A C C C A A B C B A C B E B E B
+```
+
+```{r rfTrainTest, cache=TRUE, echo=FALSE, eval=FALSE}
+###### RUN OVERNIGHT AS THIS VERY TIME CONSUMINT > 3 HRS.!!! #######
+```
+
+```{r gbmTrainTest, cache=TRUE, echo=FALSE}
+# MODEL 4) Try a gbm classifier, training parameters determined thru off-line iteration...
+suppressMessages(suppressWarnings(library(gbm)))
+suppressMessages(suppressWarnings(library(survival)))
+suppressMessages(suppressWarnings(library(splines)))
+suppressMessages(suppressWarnings(library(parallel)))
+suppressMessages(suppressWarnings(library(plyr)))
+#cat(format(Sys.time(), "%T"), "building GBM model started...\n")
+# use 5 repeats of 5-fold cross-validation
+ctrl <- trainControl(method = "repeatedcv", repeats = 5, number = 5)
+mod04.gbm <- train(classe ~ ., data=training,
+                   method='gbm',
+                   verbose=FALSE,
+                   trControl = ctrl) # ~x min's
+#cat(format(Sys.time(), "%T"), "building GBM model FINISHED!\n")
+# calc in-sample error
+pred.gbm.insample <- predict(mod04.gbm, newdata = training)
+pred.gbm.oosample <- predict(mod04.gbm, newdata = testing)
+acc.gbm.insample <- sum(pred.gbm.insample == training$classe) / length(training$classe)
+acc.gbm.oosample <- sum(pred.gbm.oosample == testing$classe) / length(testing$classe)
+# predict test cases
+pred.gbm.test.cases <- predict(mod04.gbm, newdata = test.cases)
+# > pred.gbm.test.cases
+# [1] B A B A A E D B A A B C B A E E A B B B
+# [1] B A B A A E D B A A B C B A E E A B B B
+```
+
+A Generalized Boosted Regression Model (GBM) was selected and then used to successfully predict each of 20 test cases.  The GBM was selected from 3 other models: Linear Discriminant Analysis (LDA), Recursive Partitioning and Regression Tree (RPART), and Random Forrest.  The LDA and RPART models were eliminated due to high in-sample error rates (`r 100*(1-round(acc.lda.insample, 3))`% and `r 100*(1-round(acc.cart.insample, 3))`% respectively).  The RF model had slightly better in-sample error rate compared to GBM (??% vs. `r 100*(1-round(acc.gbm.insample, 3))`% for GBM), but the RF model took over 190 minutes to train using default caret setting while the GBM only took 13 minutes using 5 repeats of 5-fold cross-validation.  The out-of-sample error rate estimated from the testing hold-outs for the GBM model was `r 100*(1-round(acc.gbm.oosample, 3))`%.
+
+The code behind all the calculations can be found in [this RMarkdown file](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/qualityOfActivity.Rmd).
+
+## Variable Selection
+
+The training data was downloaded from [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv) and the testing data [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv).  After downloading the data files, the training data was read and the columns with missing data were removed.  For details regarding the determination and removal of the columns with missing or sparsly populated data, see Appendix A.
+
+```{r}
+suppressMessages(suppressWarnings(library(dplyr)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+suppressMessages(suppressWarnings(library(lattice)))
+library(caret); library(dplyr)
+file <- "pml-training.csv"
+rawActitivity <- read.csv(file)
+```
+
+```{r echo=FALSE}
+## Creates a data frame with three columns: index, ColumnName and
+## FractionMissing.
+## index is the column index in df corresponding to ColumnName
+## ColumnName is as the name implies: the name the column in df
+## FractionMissing is the fraction of values that are missing or NA.
+## The closer this value is to 1, the less data the column contains
+getFractionMissing <- function(df = rawActitivity) {
+    colCount <- ncol(df)
+    returnDf <- data.frame(index=1:ncol(df),
+                           columnName=rep("undefined", colCount),
+                           FractionMissing=rep(-1, colCount),
+                           stringsAsFactors=FALSE)
+    for(i in 1:colCount) {
+        colVector <- df[,i]
+        missingCount <- length(which(colVector == "") * 1)
+        missingCount <- missingCount + sum(is.na(colVector) * 1)
+        returnDf$columnName[i] <- as.character(names(df)[i])
+        returnDf$FractionMissing[i] <- missingCount / length(colVector)
+    }
+    
+    return(returnDf)
+}
+
+varsDf <- getFractionMissing()
+
+```
+
+
+```
+
+
+\newpage
+
+## Appendix A - Excluded Variables
+
+The following code was used to determine which columns had missing data.
+
+```{r}
+## Creates a data frame with three columns: index, ColumnName and
+## FractionMissing.
+## index is the column index in df corresponding to ColumnName
+## ColumnName is as the name implies: the name the column in df
+## FractionMissing is the fraction of values that are missing or NA.
+## The closer this value is to 1, the less data the column contains
+getFractionMissing <- function(df = rawActitivity) {
+    colCount <- ncol(df)
+    returnDf <- data.frame(index=1:ncol(df),
+                           columnName=rep("undefined", colCount),
+                           FractionMissing=rep(-1, colCount),
+                           stringsAsFactors=FALSE)
+    for(i in 1:colCount) {
+        colVector <- df[,i]
+        missingCount <- length(which(colVector == "") * 1)
+        missingCount <- missingCount + sum(is.na(colVector) * 1)
+        returnDf$columnName[i] <- as.character(names(df)[i])
+        returnDf$FractionMissing[i] <- missingCount / length(colVector)
+    }
+    
+    return(returnDf)
+}
+
+varsDf <- getFractionMissing()
+varsDf
+
+```
+
+Base on the output above, the following variables were excluded for two reasons. First, `r round(19216/19622, 2) * 100` % of their values were missing. Second, these same variables did were not populated with values in the testing data set (running *getFractionMissing(pml_testing)*).
+
+kurtosis_roll_belt  
+kurtosis_picth_belt  
+kurtosis_yaw_belt  
+skewness_roll_belt  
+skewness_roll_belt.1  
+skewness_yaw_belt  
+max_roll_belt  
+max_picth_belt  
+max_yaw_belt  
+min_roll_belt  
+min_pitch_belt  
+min_yaw_belt  
+amplitude_roll_belt  
+amplitude_pitch_belt  
+amplitude_yaw_belt  
+var_total_accel_belt  
+avg_roll_belt  
+stddev_roll_belt  
+var_roll_belt  
+avg_pitch_belt  
+stddev_pitch_belt  
+var_pitch_belt  
+avg_yaw_belt  
+stddev_yaw_belt  
+var_yaw_belt  
+var_accel_arm  
+avg_roll_arm  
+stddev_roll_arm  
+var_roll_arm  
+avg_pitch_arm  
+stddev_pitch_arm  
+var_pitch_arm  
+avg_yaw_arm  
+stddev_yaw_arm  
+var_yaw_arm  
+kurtosis_roll_arm  
+kurtosis_picth_arm  
+kurtosis_yaw_arm  
+skewness_roll_arm  
+skewness_pitch_arm  
+skewness_yaw_arm  
+max_roll_arm  
+max_picth_arm  
+max_yaw_arm  
+min_roll_arm  
+min_pitch_arm  
+min_yaw_arm  
+amplitude_roll_arm  
+amplitude_pitch_arm  
+amplitude_yaw_arm  
+kurtosis_roll_dumbbell  
+kurtosis_picth_dumbbell  
+kurtosis_yaw_dumbbell  
+skewness_roll_dumbbell  
+skewness_pitch_dumbbell  
+skewness_yaw_dumbbell  
+max_roll_dumbbell  
+max_picth_dumbbell  
+max_yaw_dumbbell  
+min_roll_dumbbell  
+min_pitch_dumbbell  
+min_yaw_dumbbell  
+amplitude_roll_dumbbell  
+amplitude_pitch_dumbbell  
+amplitude_yaw_dumbbell  
+var_accel_dumbbell  
+avg_roll_dumbbell  
+stddev_roll_dumbbell  
+var_roll_dumbbell  
+avg_pitch_dumbbell  
+stddev_pitch_dumbbell  
+var_pitch_dumbbell  
+avg_yaw_dumbbell  
+stddev_yaw_dumbbell  
+var_yaw_dumbbell  
+kurtosis_roll_forearm  
+kurtosis_picth_forearm  
+kurtosis_yaw_forearm  
+skewness_roll_forearm  
+skewness_pitch_forearm  
+skewness_yaw_forearm  
+max_roll_forearm  
+max_picth_forearm  
+max_yaw_forearm  
+min_roll_forearm  
+min_pitch_forearm  
+min_yaw_forearm  
+amplitude_roll_forearm  
+amplitude_pitch_forearm  
+amplitude_yaw_forearm  
+var_accel_forearm  
+avg_roll_forearm  
+stddev_roll_forearm  
+var_roll_forearm  
+avg_pitch_forearm  
+stddev_pitch_forearm  
+var_pitch_forearm  
+avg_yaw_forearm  
+stddev_yaw_forearm  
+var_yaw_forearm  
