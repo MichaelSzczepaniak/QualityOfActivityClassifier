@@ -126,9 +126,24 @@ validation.acc.cart &lt;- sum(pred.cart.test.cases == correct.validation.respons
                        length(correct.validation.responses)
 
 # RF calculations of IS error, OOS error and accuracy on final test cases
+pred.rf.insample &lt;- predict(mod03.rf, newdata = training)
+pred.rf.oosample &lt;- predict(mod03.rf, newdata = testing)
+acc.rf.insample &lt;- sum(pred.rf.insample == training$classe) / length(training$classe)
+acc.rf.oosample &lt;- sum(pred.rf.oosample == testing$classe) / length(testing$classe)
+# predict test cases using Random Forrest
+pred.rf.test.cases &lt;- predict(mod03.rf, newdata = test.cases)
+validation.acc.rf &lt;- sum(pred.rf.test.cases == correct.validation.responses) /
+                     length(correct.validation.responses)
 
-
-# GBM calculations of IS error, OOS error and accuracy on final test cases</code></pre>
+# GBM calculations of IS error, OOS error and accuracy on final test cases
+pred.gbm.insample &lt;- predict(mod04.gbm, newdata = training)
+pred.gbm.oosample &lt;- predict(mod04.gbm, newdata = testing)
+acc.gbm.insample &lt;- sum(pred.gbm.insample == training$classe) / length(training$classe)
+acc.gbm.oosample &lt;- sum(pred.gbm.oosample == testing$classe) / length(testing$classe)
+# predict test cases using GBM
+pred.gbm.test.cases &lt;- predict(mod04.gbm, newdata = test.cases)
+validation.acc.gbm &lt;- sum(pred.gbm.test.cases == correct.validation.responses) /
+                      length(correct.validation.responses)</code></pre>
 </div>
 
 
