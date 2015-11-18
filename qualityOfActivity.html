@@ -102,7 +102,7 @@ img {
 inTrain &lt;- createDataPartition(trimmedActivity3$classe, p=0.60, list=FALSE)
 training &lt;- trimmedActivity3[inTrain,]
 testing &lt;- trimmedActivity3[-inTrain,]</code></pre>
-<p>Each model was built by passing the <strong>training</strong> set to the <em>train</em> function in <em>caret</em> package as shown below.</p>
+<p>Each model was built by passing the <strong>training</strong> set to the <em>train</em> function in <em>caret</em> package as shown below. For details see <a href="http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy">Appendix B</a>.</p>
 <pre class="r"><code>mod01.lda &lt;- train(classe ~ ., method='lda', data=training)    # LDA model build
 mod02.cart &lt;- train(classe ~ ., method='rpart', data=training) # RPART model build
 # Random Forrest model build
@@ -130,30 +130,30 @@ mod04.gbm &lt;- train(classe ~ ., data=training, method='gbm', verbose=FALSE, tr
 <tr class="odd">
 <td align="left">Build Time (min)</td>
 <td align="left">0.1</td>
-<td align="left">0.15</td>
-<td align="left">177.4</td>
-<td align="left">11.8</td>
+<td align="left">0.14</td>
+<td align="left">176.58</td>
+<td align="left">10.42</td>
 </tr>
 <tr class="even">
 <td align="left">Model In-Memeory Size (Mb)</td>
-<td align="left">4</td>
-<td align="left">8</td>
-<td align="left">1001</td>
-<td align="left">12</td>
+<td align="left">4.02</td>
+<td align="left">7.96</td>
+<td align="left">1081.43</td>
+<td align="left">11.95</td>
 </tr>
 <tr class="odd">
 <td align="left">In-Sample Error</td>
-<td align="left">0.429</td>
-<td align="left">0.43</td>
+<td align="left">0.4291</td>
+<td align="left">0.4305</td>
 <td align="left">0</td>
-<td align="left">0.006</td>
+<td align="left">0.0065</td>
 </tr>
 <tr class="even">
 <td align="left">Out-of-Sample Error</td>
-<td align="left">0.426</td>
-<td align="left">0.429</td>
-<td align="left">0.005</td>
-<td align="left">0.01</td>
+<td align="left">0.4257</td>
+<td align="left">0.4291</td>
+<td align="left">0.0048</td>
+<td align="left">0.0097</td>
 </tr>
 <tr class="odd">
 <td align="left">Final Test Accuracy</td>

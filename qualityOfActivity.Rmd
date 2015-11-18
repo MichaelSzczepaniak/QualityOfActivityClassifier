@@ -83,10 +83,16 @@ training <- trimmedActivity3[inTrain,]
 testing <- trimmedActivity3[-inTrain,]
 startTime <- Sys.time()
 #cat(format(startTime, "%T"), "building LDA model started...\n")
+set.seed(374659)
 mod01.lda <- train(classe ~ ., method='lda', data=training) # about 6 sec's
 endTime <- Sys.time()
 #cat(format(endTime, "%T"), "building LDA model FINISHED!\n")
-time.lda.seconds <- endTime - startTime
+time.lda.minutes <- endTime - startTime
+# http://stackoverflow.com/questions/5396429/getting-consist-units-from-diff-command-in-r
+units(time.lda.minutes) <- "mins"
+```
+
+```{r ldaErrorsAccuracy, cache=TRUE, echo=FALSE}
 # calc in-sample and out-of-sample error
 pred.lda.insample <- predict(mod01.lda, newdata = training)
 pred.lda.oosample <- predict(mod01.lda, newdata = testing)
@@ -103,10 +109,17 @@ validation.acc.lda <- sum(pred.lda.test.cases == correct.validation.responses) /
 ```{r rpartTrainTest, cache=TRUE, echo=FALSE}
 suppressMessages(suppressWarnings(library(rpart)))
 # MODEL 2) Try a classification tree using caret training defaults
+startTime <- Sys.time()
 #cat(format(Sys.time(), "%T"), "building CART model started...\n")
 set.seed(1449)
 mod02.cart <- train(classe ~ ., method='rpart', data=training) # about 9 sec's
-#cat(format(Sys.time(), "%T"), "building CART model FINISHED!\n")
+endTime <- Sys.time()
+#cat(format(endTime, "%T"), "building CART model FINISHED!\n")
+time.rpart.minutes <- endTime - startTime
+units(time.rpart.minutes) <- "mins"
+```
+
+```{r rpartErrorsAccuracy, cache=TRUE, echo=FALSE}
 # calc in-sample and out-of-sample error
 pred.cart.insample <- predict(mod02.cart, newdata = training)
 pred.cart.oosample <- predict(mod02.cart, newdata = testing)
@@ -124,12 +137,18 @@ validation.acc.cart <- sum(pred.cart.test.cases == correct.validation.responses)
 ```{r rfTrainTest, cache=TRUE, echo=FALSE}
 suppressMessages(suppressWarnings(library(randomForest)))
 # MODEL 3) Try a random forrest classifier
-# cat(format(Sys.time(), "%T"), "building RF model started...\n")
+startTime <- Sys.time()
+# cat(format(startTime, "%T"), "building RF model started...\n")
 set.seed(1451)
 mod03.rf <- train(classe ~ ., method='rf', prox=TRUE, data=training)
-# above line took ~190 min's on my Xeon 16Gb workstation to complete
-# and gave an in-sample error of < 0.3%
-# cat(format(Sys.time(), "%T"), "building RF model FINISHED!\n")
+# above line took 3 hrs. on my Xeon 16Gb workstation to complete
+endTime <- Sys.time()
+#cat(format(endTime, "%T"), "building RF model FINISHED!\n")
+time.rf.minutes <- endTime - startTime
+units(time.rf.minutes) <- "mins"
+```
+
+```{r rfErrorsAccuracy, cache=TRUE, echo=FALSE}
 # calc in-sample and out-of-sample error
 pred.rf.insample <- predict(mod03.rf, newdata = training)
 pred.rf.oosample <- predict(mod03.rf, newdata = testing)
@@ -138,6 +157,8 @@ acc.rf.oosample <- sum(pred.rf.oosample == testing$classe) / length(testing$clas
 
 # read the test cases and predict them
 pred.rf.test.cases <- predict(mod03.rf, newdata = test.cases)
+validation.acc.rf <- sum(pred.rf.test.cases == correct.validation.responses) /
+                     length(correct.validation.responses)
 # > pred.rf.test.cases
 # [1] B A B A A E D B A A B C B A E E A B B B
 ```
@@ -149,15 +170,20 @@ suppressMessages(suppressWarnings(library(survival)))
 suppressMessages(suppressWarnings(library(splines)))
 suppressMessages(suppressWarnings(library(parallel)))
 suppressMessages(suppressWarnings(library(plyr)))
-#cat(format(Sys.time(), "%T"), "building GBM model started...\n")
+startTime <- Sys.time()
+#cat(format(startTime, "%T"), "building GBM model started...\n")
 # use 5 repeats of 5-fold cross-validation
 ctrl <- trainControl(method = "repeatedcv", repeats = 5, number = 5)
 set.seed(1477)
-mod04.gbm <- train(classe ~ ., data=training,
-                   method='gbm',
-                   verbose=FALSE,
-                   trControl = ctrl) # ~x min's
-#cat(format(Sys.time(), "%T"), "building GBM model FINISHED!\n")
+mod04.gbm <- train(classe ~ ., data=training, method='gbm',
+                   verbose=FALSE, trControl = ctrl)
+endTime <- Sys.time()
+#cat(format(endTime, "%T"), "building GBM model FINISHED!\n")
+time.gbm.minutes <- endTime - startTime
+units(time.gbm.minutes) <- "mins"
+```
+
+```{r gbmErrorsAccuracy, cache=TRUE, echo=FALSE}
 # calc in-sample error
 pred.gbm.insample <- predict(mod04.gbm, newdata = training)
 pred.gbm.oosample <- predict(mod04.gbm, newdata = testing)
@@ -220,7 +246,7 @@ training <- trimmedActivity3[inTrain,]
 testing <- trimmedActivity3[-inTrain,]
 ```
 
-Each model was built by passing the **training** set to the *train* function in *caret* package as shown below.
+Each model was built by passing the **training** set to the *train* function in *caret* package as shown below.  For details see [Appendix B](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy).
 
 ```{r eval=FALSE}
 mod01.lda <- train(classe ~ ., method='lda', data=training)    # LDA model build
@@ -241,29 +267,27 @@ The table in **Figure 2** below summarizes the results of the model selection an
 
 ```{r cache=TRUE, echo=FALSE}
 # Figure 2 table summarizing results
-# Calculating rf final accuracy outside of rf block to avoid having to recompile
-# the rf section which takes about 3 hrs.
-validation.acc.rf <- sum(pred.rf.test.cases == correct.validation.responses) /
-                     length(correct.validation.responses)
 rowNameValues <- c("Build Time (min)", "Model In-Memeory Size (Mb)",
                    "In-Sample Error", "Out-of-Sample Error",
                    "Final Test Accuracy")
 # build times will vary by machine, model size was read from environment
+buildTimes <- round(c(time.lda.minutes, time.rpart.minutes,
+                      time.rf.minutes, time.gbm.minutes), 2)
+modelSizes <- round(c(object.size(mod01.lda)/2^20, object.size(mod02.cart)/2^20,
+                      object.size(mod03.rf)/2^20, object.size(mod04.gbm)/2^20), 2)
+isErrors <- round(c((1-acc.lda.insample), (1-acc.cart.insample),
+                    (1-acc.rf.insample), (1-acc.gbm.insample)), 4)
+oosErrors <- round(c((1-acc.lda.oosample), (1-acc.cart.oosample),
+                     (1-acc.rf.oosample), (1-acc.gbm.oosample)), 4)
+validationTestAcc <- round(c(validation.acc.lda, validation.acc.cart,
+                             validation.acc.rf, validation.acc.gbm), 4)
+# build data frame for the table
 activity.sum.table <- data.frame(Model=c("LDA", "RPART", "RF", "GBM"),
-                                 BuildTime=c(0.1, 0.15, 177.4, 11.8),
-                                 ModelSize=c(4, 8, 1001, 12),
-                                 InSampleError=c(round(1-acc.lda.insample, 3),
-                                                 round(1-acc.cart.insample, 3),
-                                                 round(1-acc.rf.insample, 3),
-                                                 round(1-acc.gbm.insample, 3)),
-                                 OoSampleError=c(round(1-acc.lda.oosample, 3),
-                                                 round(1-acc.cart.oosample, 3),
-                                                 round(1-acc.rf.oosample, 3),
-                                                 round(1-acc.gbm.oosample, 3)),
-                                 FinalTestAccuracy=c(round(validation.acc.lda, 4),
-                                                     round(validation.acc.cart, 4),
-                                                     round(validation.acc.rf, 4),
-                                                     round(validation.acc.gbm, 4)))
+                                 BuildTime=buildTimes,
+                                 ModelSize=modelSizes,
+                                 InSampleError=isErrors,
+                                 OoSampleError=oosErrors,
+                                 FinalTestAccuracy=validationTestAcc)
 
 createResultsTable <- function(qualActData = activity.sum.table) {
     suppressMessages(suppressWarnings(library(knitr)))
