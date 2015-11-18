@@ -101,49 +101,135 @@ varsDf &lt;- getFractionMissing()
 varsDf</code></pre>
 <p>Base on the output above, the following variables were excluded for two reasons. First, 98 % of their values were missing. Second, these same variables did were not populated with values in the testing data set (running <em>getFractionMissing(pml_testing)</em>).</p>
 <p>kurtosis_roll_belt<br />kurtosis_picth_belt<br />kurtosis_yaw_belt<br />skewness_roll_belt<br />skewness_roll_belt.1<br />skewness_yaw_belt<br />max_roll_belt<br />max_picth_belt<br />max_yaw_belt<br />min_roll_belt<br />min_pitch_belt<br />min_yaw_belt<br />amplitude_roll_belt<br />amplitude_pitch_belt<br />amplitude_yaw_belt<br />var_total_accel_belt<br />avg_roll_belt<br />stddev_roll_belt<br />var_roll_belt<br />avg_pitch_belt<br />stddev_pitch_belt<br />var_pitch_belt<br />avg_yaw_belt<br />stddev_yaw_belt<br />var_yaw_belt<br />var_accel_arm<br />avg_roll_arm<br />stddev_roll_arm<br />var_roll_arm<br />avg_pitch_arm<br />stddev_pitch_arm<br />var_pitch_arm<br />avg_yaw_arm<br />stddev_yaw_arm<br />var_yaw_arm<br />kurtosis_roll_arm<br />kurtosis_picth_arm<br />kurtosis_yaw_arm<br />skewness_roll_arm<br />skewness_pitch_arm<br />skewness_yaw_arm<br />max_roll_arm<br />max_picth_arm<br />max_yaw_arm<br />min_roll_arm<br />min_pitch_arm<br />min_yaw_arm<br />amplitude_roll_arm<br />amplitude_pitch_arm<br />amplitude_yaw_arm<br />kurtosis_roll_dumbbell<br />kurtosis_picth_dumbbell<br />kurtosis_yaw_dumbbell<br />skewness_roll_dumbbell<br />skewness_pitch_dumbbell<br />skewness_yaw_dumbbell<br />max_roll_dumbbell<br />max_picth_dumbbell<br />max_yaw_dumbbell<br />min_roll_dumbbell<br />min_pitch_dumbbell<br />min_yaw_dumbbell<br />amplitude_roll_dumbbell<br />amplitude_pitch_dumbbell<br />amplitude_yaw_dumbbell<br />var_accel_dumbbell<br />avg_roll_dumbbell<br />stddev_roll_dumbbell<br />var_roll_dumbbell<br />avg_pitch_dumbbell<br />stddev_pitch_dumbbell<br />var_pitch_dumbbell<br />avg_yaw_dumbbell<br />stddev_yaw_dumbbell<br />var_yaw_dumbbell<br />kurtosis_roll_forearm<br />kurtosis_picth_forearm<br />kurtosis_yaw_forearm<br />skewness_roll_forearm<br />skewness_pitch_forearm<br />skewness_yaw_forearm<br />max_roll_forearm<br />max_picth_forearm<br />max_yaw_forearm<br />min_roll_forearm<br />min_pitch_forearm<br />min_yaw_forearm<br />amplitude_roll_forearm<br />amplitude_pitch_forearm<br />amplitude_yaw_forearm<br />var_accel_forearm<br />avg_roll_forearm<br />stddev_roll_forearm<br />var_roll_forearm<br />avg_pitch_forearm<br />stddev_pitch_forearm<br />var_pitch_forearm<br />avg_yaw_forearm<br />stddev_yaw_forearm<br />var_yaw_forearm</p>
+<p>The following code was used to create the data set with only the selected predictors.</p>
+<pre class="r"><code>library(caret); library(dplyr)
+varsDf &lt;- getFractionMissing()
+# get column/var names with &gt; 80% of values not empty or NA
+varsWithData &lt;- filter(varsDf, FractionMissing &lt; 0.20)$columnName
+# varsWithLittleData &lt;- filter(varsDf, FractionMissing &gt; 0.90)$columnName
+# http://stackoverflow.com/questions/10086494#10086494
+trimmedActivity &lt;- subset(rawActitivity, select=varsWithData)
+# This eliminated 100 out of the 160 vars. Turns out that these same
+# 100 var's aren't populated at all in test set which makes it a
+# no-brainer to pitch them.
+offset = 6; classDesignatorCol &lt;- ncol(trimmedActivity) # last col is class
+# convert new_window from factor to int
+trimmedActivity$new_window &lt;- as.integer(trimmedActivity$new_window)
+correlationMatrix &lt;- cor(trimmedActivity[, (offset+1):classDesignatorCol-1])
+#print(correlationMatrix)
+# find attributes that are highly corrected (ideally &gt; 0.75)
+highlyCorrelated &lt;- sort(findCorrelation(correlationMatrix, cutoff=0.75))
+highlyCorrelated &lt;- highlyCorrelated + offset # get cols relative to trimmed df
+trimmedActivity2 &lt;- trimmedActivity[,-highlyCorrelated] # remove highly cor vars
+trimmedActivity2 &lt;- trimmedActivity2[,-1] # 1st col is just an index
+trimmedActivity3 &lt;- trimmedActivity2[,-4:-2] # remove time stamp info
+# remove user_name and new_window after looking at importance plot (see below)
+trimmedActivity3 &lt;- trimmedActivity3[,-1] # remove user_name
+trimmedActivity3 &lt;- trimmedActivity3[,-1] # remove new_window</code></pre>
 </div>
 <div id="appendix-b---calculation-of-error-and-accuracy" class="section level2">
 <h2>Appendix B - Calculation of Error and Accuracy</h2>
-<p>The following code was used to calculate the errors and the validation accuracy:</p>
-<pre class="r"><code># LDA calculations of IS error, OOS error and accuracy on final test cases
+<p>The following code was used to build models, calculate the errors and calculate accuracy on the validation test set:</p>
+<pre class="r"><code>correct.validation.responses &lt;- c(&quot;B&quot;, &quot;A&quot;, &quot;B&quot;, &quot;A&quot;, &quot;A&quot;, &quot;E&quot;, &quot;D&quot;, &quot;B&quot;, &quot;A&quot;, &quot;A&quot;,
+                                  &quot;B&quot;, &quot;C&quot;, &quot;B&quot;, &quot;A&quot;, &quot;E&quot;, &quot;E&quot;, &quot;A&quot;, &quot;B&quot;, &quot;B&quot;, &quot;B&quot;)</code></pre>
+<pre class="r"><code># MODEL 1) Start with fast and simple LDA model using caret training defaults
+set.seed(1447)
+inTrain &lt;- createDataPartition(trimmedActivity3$classe, p=0.60, list=FALSE)
+training &lt;- trimmedActivity3[inTrain,]
+testing &lt;- trimmedActivity3[-inTrain,]
+startTime &lt;- Sys.time()
+#cat(format(startTime, &quot;%T&quot;), &quot;building LDA model started...\n&quot;)
+set.seed(374659)
+mod01.lda &lt;- train(classe ~ ., method='lda', data=training) # about 6 sec's
+endTime &lt;- Sys.time()
+#cat(format(endTime, &quot;%T&quot;), &quot;building LDA model FINISHED!\n&quot;)
+time.lda.minutes &lt;- endTime - startTime
+# http://stackoverflow.com/questions/5396429/getting-consist-units-from-diff-command-in-r
+units(time.lda.minutes) &lt;- &quot;mins&quot;</code></pre>
+<pre class="r"><code># calc in-sample and out-of-sample error
 pred.lda.insample &lt;- predict(mod01.lda, newdata = training)
 pred.lda.oosample &lt;- predict(mod01.lda, newdata = testing)
 acc.lda.insample &lt;- sum(pred.lda.insample == training$classe) / length(training$classe)
 acc.lda.oosample &lt;- sum(pred.lda.oosample == testing$classe) / length(testing$classe)
-# predict test cases using LDA
+# predict test cases
 pred.lda.test.cases &lt;- predict(mod01.lda, newdata = test.cases)
 validation.acc.lda &lt;- sum(pred.lda.test.cases == correct.validation.responses) /
                       length(correct.validation.responses)
-
-# RPART calculations of IS error, OOS error and accuracy on final test cases
+# &gt; pred01.lda.test.cases
+# [1] B A A A C C D D A A D A B A E B A B A B</code></pre>
+<pre class="r"><code>suppressMessages(suppressWarnings(library(rpart)))
+# MODEL 2) Try a classification tree using caret training defaults
+startTime &lt;- Sys.time()
+#cat(format(Sys.time(), &quot;%T&quot;), &quot;building CART model started...\n&quot;)
+set.seed(1449)
+mod02.cart &lt;- train(classe ~ ., method='rpart', data=training) # about 9 sec's
+endTime &lt;- Sys.time()
+#cat(format(endTime, &quot;%T&quot;), &quot;building CART model FINISHED!\n&quot;)
+time.rpart.minutes &lt;- endTime - startTime
+units(time.rpart.minutes) &lt;- &quot;mins&quot;</code></pre>
+<pre class="r"><code># calc in-sample and out-of-sample error
 pred.cart.insample &lt;- predict(mod02.cart, newdata = training)
 pred.cart.oosample &lt;- predict(mod02.cart, newdata = testing)
 acc.cart.insample &lt;- sum(pred.cart.insample == training$classe) / length(training$classe)
 acc.cart.oosample &lt;- sum(pred.cart.oosample == testing$classe) / length(testing$classe)
-# predict test cases using RPART
+
+# predict test cases
 pred.cart.test.cases &lt;- predict(mod02.cart, newdata = test.cases)
 validation.acc.cart &lt;- sum(pred.cart.test.cases == correct.validation.responses) /
                        length(correct.validation.responses)
-
-# RF calculations of IS error, OOS error and accuracy on final test cases
+# &gt; pred.cart.test.cases
+#  [1] E C A A A C C C A A B C B A C B E B E B</code></pre>
+<pre class="r"><code>suppressMessages(suppressWarnings(library(randomForest)))
+# MODEL 3) Try a random forrest classifier
+startTime &lt;- Sys.time()
+# cat(format(startTime, &quot;%T&quot;), &quot;building RF model started...\n&quot;)
+set.seed(1451)
+mod03.rf &lt;- train(classe ~ ., method='rf', prox=TRUE, data=training)
+# above line took 3 hrs. on my Xeon 16Gb workstation to complete
+endTime &lt;- Sys.time()
+#cat(format(endTime, &quot;%T&quot;), &quot;building RF model FINISHED!\n&quot;)
+time.rf.minutes &lt;- endTime - startTime
+units(time.rf.minutes) &lt;- &quot;mins&quot;</code></pre>
+<pre class="r"><code># calc in-sample and out-of-sample error
 pred.rf.insample &lt;- predict(mod03.rf, newdata = training)
 pred.rf.oosample &lt;- predict(mod03.rf, newdata = testing)
 acc.rf.insample &lt;- sum(pred.rf.insample == training$classe) / length(training$classe)
 acc.rf.oosample &lt;- sum(pred.rf.oosample == testing$classe) / length(testing$classe)
-# predict test cases using Random Forrest
+
+# read the test cases and predict them
 pred.rf.test.cases &lt;- predict(mod03.rf, newdata = test.cases)
 validation.acc.rf &lt;- sum(pred.rf.test.cases == correct.validation.responses) /
                      length(correct.validation.responses)
-
-# GBM calculations of IS error, OOS error and accuracy on final test cases
+# &gt; pred.rf.test.cases
+# [1] B A B A A E D B A A B C B A E E A B B B</code></pre>
+<pre class="r"><code># MODEL 4) Try a gbm classifier, training parameters determined thru off-line iteration...
+suppressMessages(suppressWarnings(library(gbm)))
+suppressMessages(suppressWarnings(library(survival)))
+suppressMessages(suppressWarnings(library(splines)))
+suppressMessages(suppressWarnings(library(parallel)))
+suppressMessages(suppressWarnings(library(plyr)))
+startTime &lt;- Sys.time()
+#cat(format(startTime, &quot;%T&quot;), &quot;building GBM model started...\n&quot;)
+# use 5 repeats of 5-fold cross-validation
+ctrl &lt;- trainControl(method = &quot;repeatedcv&quot;, repeats = 5, number = 5)
+set.seed(1477)
+mod04.gbm &lt;- train(classe ~ ., data=training, method='gbm',
+                   verbose=FALSE, trControl = ctrl)
+endTime &lt;- Sys.time()
+#cat(format(endTime, &quot;%T&quot;), &quot;building GBM model FINISHED!\n&quot;)
+time.gbm.minutes &lt;- endTime - startTime
+units(time.gbm.minutes) &lt;- &quot;mins&quot;</code></pre>
+<pre class="r"><code># calc in-sample and out-of-sample error
 pred.gbm.insample &lt;- predict(mod04.gbm, newdata = training)
 pred.gbm.oosample &lt;- predict(mod04.gbm, newdata = testing)
 acc.gbm.insample &lt;- sum(pred.gbm.insample == training$classe) / length(training$classe)
 acc.gbm.oosample &lt;- sum(pred.gbm.oosample == testing$classe) / length(testing$classe)
-# predict test cases using GBM
+# predict test cases
 pred.gbm.test.cases &lt;- predict(mod04.gbm, newdata = test.cases)
 validation.acc.gbm &lt;- sum(pred.gbm.test.cases == correct.validation.responses) /
-                      length(correct.validation.responses)</code></pre>
+                      length(correct.validation.responses)
+# &gt; pred.gbm.test.cases
+# [1] B A B A A E D B A A B C B A E E A B B B</code></pre>
 </div>
 
 
