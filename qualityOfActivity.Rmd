@@ -197,13 +197,21 @@ validation.acc.gbm <- sum(pred.gbm.test.cases == correct.validation.responses) /
 # [1] B A B A A E D B A A B C B A E E A B B B
 ```
 
-A Random Forrest (RF) model with 32 predictors was selected for use to predict 20 final validation test cases.  While the RF model accurately predicted all 20 test cases, a GBM also was able to predict each of the validation cases correctly.  Two other model types were evaluated as part of the investigation: Linear Discriminant Analysis (LDA) and Recursive Partitioning and Regression Tree (RPART).  The LDA and RPART models were eliminated due to high in-sample error rates (`r 100*(1-round(acc.lda.insample, 3))`% and `r 100*(1-round(acc.cart.insample, 3))`% respectively).  The RF model had a better in-sample error rate compared to GBM (`r 100*(1-round(acc.rf.insample, 5))`% vs. `r 100*(1-round(acc.gbm.insample, 5))`% for GBM), but the RF model took over 177 minutes to train using default caret setting while the GBM only took 1 minutes using 5 repeats of 5-fold cross-validation.  The out-of-sample error rates estimated from the testing hold-outs for the GBM and RF models were `r 100*(1-round(acc.gbm.oosample, 3))`% and `r 100*(1-round(acc.rf.oosample, 3))`% respectively.  The GDM was deemed good enough to use on the validation test set.
+```{r variableCounts, cache=TRUE, echo=FALSE}
+orig.pred.count <- ncol(rawActitivity) - 1
+nodata.pred.count <- ncol(trimmedActivity) - 1
+nohighcorr.pred.count <- ncol(trimmedActivity2) - 1
+final.pred.count <- ncol(trimmedActivity3) - 1
+```
+
+
+A Random Forrest (RF) model with 32 predictors was selected for use to predict 20 final validation test cases.  While the RF model accurately predicted all 20 test cases, a Boosted Tree model (GBM) also was able to predict each of the validation cases correctly.  Two other model types were evaluated as part of the investigation: Linear Discriminant Analysis (LDA) and Recursive Partitioning and Regression Tree (RPART).  The LDA and RPART models were eliminated due to high in-sample error rates (`r 100*(1-round(acc.lda.insample, 3))`% and `r 100*(1-round(acc.cart.insample, 3))`% respectively).  The RF model had a better in-sample error rate compared to GBM (`r 100*(1-round(acc.rf.insample, 5))`% vs. `r 100*(1-round(acc.gbm.insample, 5))`% for GBM), but the RF model took over `r round(time.rf.minutes, 0)` minutes to train using default caret setting while the GBM only took about `r round(time.gbm.minutes, 0)` minutes using 5 repeats of 5-fold cross-validation.  The out-of-sample error rates estimated from the testing hold-outs for the GBM and RF models were `r 100*(1-round(acc.gbm.oosample, 3))`% and `r 100*(1-round(acc.rf.oosample, 3))`% respectively.  The GBM would have been good enough to use on the validation test set.
 
 The code behind all the calculations can be found in [this RMarkdown file](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/qualityOfActivity.Rmd).
 
 ## Variable Selection
 
-The training data was downloaded from [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv) and the testing data [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv).  After downloading the data files, the training data was read and the columns with missing data were removed.  Eliminating the missing and sparsely populated column took the variable count from 160 down to 60.  The next reduction came from identifying and removing highly correlated variables which took the count from 60 down to 39.  The last reduction was the result of removing variables that had either low significance as determined by the *varImp* in caret or just didn't belong in the classifier (user_name, new_window and pitch_arm variables).  
+The training data was downloaded from [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv) and the testing data [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv).  After downloading the data files, the training data was read and the columns with missing data were removed.  Eliminating the missing and sparsely populated column took the variable count from `r orig.pred.count` down to `r nodata.pred.count`.  The next reduction came from identifying and removing highly correlated variables which took the count from `r nodata.pred.count` down to `r nohighcorr.pred.count`.  The last reduction was the result of removing variables that had either low significance as determined by the *varImp* in caret or just didn't belong in the classifier (user_name, new_window and pitch_arm variables).  
 
 Details regarding the variable reduction process are described in [Appendix A](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html) and are summarized in **Figure 1** below.
 
@@ -211,8 +219,8 @@ Details regarding the variable reduction process are described in [Appendix A](h
 suppressMessages(suppressWarnings(library(ggplot2)))
 library(ggplot2)
 iterNum <- c(0:3)
-variableCount <- c(160, 60, 39, 33)  # var counts after each itr
-df.var <- data.frame(itr=iterNum, varCount=variableCount)
+variableCounts <- c(orig.pred.count, nodata.pred.count, nohighcorr.pred.count, final.pred.count)
+df.var <- data.frame(itr=iterNum, varCount=variableCounts)
 pFig2 <- ggplot(df.var, aes(x=itr, y=varCount)) + geom_line()
 pFig2 <- pFig2 + ggtitle("Figure 1 - Variable Count vs. Iteration Number")
 pFig2 <- pFig2 +labs(x="Iteration #", y="Model Variable count")
@@ -228,7 +236,7 @@ pFig2 <- pFig2 + annotate("text", x = 2.5, y = 48, color = "blue", angle = 0,
 pFig2
 ```
 
-The 32 variables selected as preditors for each model evaluated are shown below.
+The `r final.pred.count` variables selected as preditors for each model evaluated are shown below.
 
 ```{r}
 names(trimmedActivity3)[-ncol(trimmedActivity3)]
@@ -249,11 +257,16 @@ testing <- trimmedActivity3[-inTrain,]
 Each model was built by passing the **training** set to the *train* function in *caret* package as shown below.  For details see [Appendix B](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy).
 
 ```{r eval=FALSE}
+set.seed(374659)
 mod01.lda <- train(classe ~ ., method='lda', data=training)    # LDA model build
+# ...
+set.seed(1449)
 mod02.cart <- train(classe ~ ., method='rpart', data=training) # RPART model build
+# ...
 # Random Forrest model build
 set.seed(1451); mod03.rf <- train(classe ~ ., method='rf', prox=TRUE, data=training)
-# GBM model build
+# ...
+# GBM (boosted tree) model build
 ctrl <- trainControl(method = "repeatedcv", repeats = 5, number = 5)
 set.seed(1477)
 mod04.gbm <- train(classe ~ ., data=training, method='gbm', verbose=FALSE, trControl = ctrl)
@@ -326,6 +339,6 @@ It's worth noting that while the RF model was the most accurate, it took an orde
 
 ## Error Rates
 
-The **In-Sample Error** (IS) rates shown in **Figure 2** were calculated using the predictions from the models built in the **Data Partitioning and Model Builds** section on the **training** data.  The **Out-of-Sample Error** (OOS) rates in the same figure were calculated using the samples held out in the **testing** data set.  The IS error rates were larger than the OOS error rates as one should expect.
+The **In-Sample Error** (IS) rates shown in **Figure 2** were calculated using the predictions from the models built in the **Data Partitioning and Model Builds** section on the **training** data.  The **Out-of-Sample Error** (OOS) rates in the same figure were calculated using the samples held out in the **testing** data set.  The IS error rates were very close to the OOS error rates.  The IS error rates were larger than OOS error rates in 3 of the 4 cases as one would expect.  The RPART anomaly appears to be due to resampling error.
 
 As shown in **Figure 2** above, the OOS error rates for the RF and GBM models were `r round(1-acc.rf.oosample, 3)` and `r round(1-acc.gbm.oosample, 3)` respectively.  The code used for calculating the IS errors, OOS errors, and final (validation) test accuracy is listed in [Appendix B](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy)

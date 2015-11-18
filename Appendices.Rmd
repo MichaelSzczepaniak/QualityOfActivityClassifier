@@ -146,50 +146,164 @@ avg_yaw_forearm
 stddev_yaw_forearm  
 var_yaw_forearm  
 
+The following code was used to create the data set with only the selected predictors.  
+
+```{r eval=FALSE}
+library(caret); library(dplyr)
+varsDf <- getFractionMissing()
+# get column/var names with > 80% of values not empty or NA
+varsWithData <- filter(varsDf, FractionMissing < 0.20)$columnName
+# varsWithLittleData <- filter(varsDf, FractionMissing > 0.90)$columnName
+# http://stackoverflow.com/questions/10086494#10086494
+trimmedActivity <- subset(rawActitivity, select=varsWithData)
+# This eliminated 100 out of the 160 vars. Turns out that these same
+# 100 var's aren't populated at all in test set which makes it a
+# no-brainer to pitch them.
+offset = 6; classDesignatorCol <- ncol(trimmedActivity) # last col is class
+# convert new_window from factor to int
+trimmedActivity$new_window <- as.integer(trimmedActivity$new_window)
+correlationMatrix <- cor(trimmedActivity[, (offset+1):classDesignatorCol-1])
+#print(correlationMatrix)
+# find attributes that are highly corrected (ideally > 0.75)
+highlyCorrelated <- sort(findCorrelation(correlationMatrix, cutoff=0.75))
+highlyCorrelated <- highlyCorrelated + offset # get cols relative to trimmed df
+trimmedActivity2 <- trimmedActivity[,-highlyCorrelated] # remove highly cor vars
+trimmedActivity2 <- trimmedActivity2[,-1] # 1st col is just an index
+trimmedActivity3 <- trimmedActivity2[,-4:-2] # remove time stamp info
+# remove user_name and new_window after looking at importance plot (see below)
+trimmedActivity3 <- trimmedActivity3[,-1] # remove user_name
+trimmedActivity3 <- trimmedActivity3[,-1] # remove new_window
+```
+
+
 
 ## Appendix B - Calculation of Error and Accuracy
 
-The following code was used to calculate the errors and the validation accuracy:  
+The following code was used to build models, calculate the errors and calculate accuracy on the validation test set:  
 
 ```{r eval=FALSE}
-# LDA calculations of IS error, OOS error and accuracy on final test cases
+correct.validation.responses <- c("B", "A", "B", "A", "A", "E", "D", "B", "A", "A",
+                                  "B", "C", "B", "A", "E", "E", "A", "B", "B", "B")
+```
+
+```{r ldaTrainTest, cache=TRUE, eval=FALSE}
+# MODEL 1) Start with fast and simple LDA model using caret training defaults
+set.seed(1447)
+inTrain <- createDataPartition(trimmedActivity3$classe, p=0.60, list=FALSE)
+training <- trimmedActivity3[inTrain,]
+testing <- trimmedActivity3[-inTrain,]
+startTime <- Sys.time()
+#cat(format(startTime, "%T"), "building LDA model started...\n")
+set.seed(374659)
+mod01.lda <- train(classe ~ ., method='lda', data=training) # about 6 sec's
+endTime <- Sys.time()
+#cat(format(endTime, "%T"), "building LDA model FINISHED!\n")
+time.lda.minutes <- endTime - startTime
+# http://stackoverflow.com/questions/5396429/getting-consist-units-from-diff-command-in-r
+units(time.lda.minutes) <- "mins"
+```
+
+```{r ldaErrorsAccuracy, cache=TRUE, eval=FALSE}
+# calc in-sample and out-of-sample error
 pred.lda.insample <- predict(mod01.lda, newdata = training)
 pred.lda.oosample <- predict(mod01.lda, newdata = testing)
 acc.lda.insample <- sum(pred.lda.insample == training$classe) / length(training$classe)
 acc.lda.oosample <- sum(pred.lda.oosample == testing$classe) / length(testing$classe)
-# predict test cases using LDA
+# predict test cases
 pred.lda.test.cases <- predict(mod01.lda, newdata = test.cases)
 validation.acc.lda <- sum(pred.lda.test.cases == correct.validation.responses) /
                       length(correct.validation.responses)
+# > pred01.lda.test.cases
+# [1] B A A A C C D D A A D A B A E B A B A B
+```
 
-# RPART calculations of IS error, OOS error and accuracy on final test cases
+```{r rpartTrainTest, cache=TRUE, eval=FALSE}
+suppressMessages(suppressWarnings(library(rpart)))
+# MODEL 2) Try a classification tree using caret training defaults
+startTime <- Sys.time()
+#cat(format(Sys.time(), "%T"), "building CART model started...\n")
+set.seed(1449)
+mod02.cart <- train(classe ~ ., method='rpart', data=training) # about 9 sec's
+endTime <- Sys.time()
+#cat(format(endTime, "%T"), "building CART model FINISHED!\n")
+time.rpart.minutes <- endTime - startTime
+units(time.rpart.minutes) <- "mins"
+```
+
+```{r rpartErrorsAccuracy, cache=TRUE, eval=FALSE}
+# calc in-sample and out-of-sample error
 pred.cart.insample <- predict(mod02.cart, newdata = training)
 pred.cart.oosample <- predict(mod02.cart, newdata = testing)
 acc.cart.insample <- sum(pred.cart.insample == training$classe) / length(training$classe)
 acc.cart.oosample <- sum(pred.cart.oosample == testing$classe) / length(testing$classe)
-# predict test cases using RPART
+
+# predict test cases
 pred.cart.test.cases <- predict(mod02.cart, newdata = test.cases)
 validation.acc.cart <- sum(pred.cart.test.cases == correct.validation.responses) /
                        length(correct.validation.responses)
+# > pred.cart.test.cases
+#  [1] E C A A A C C C A A B C B A C B E B E B
+```
 
-# RF calculations of IS error, OOS error and accuracy on final test cases
+```{r rfTrainTest, cache=TRUE, eval=FALSE}
+suppressMessages(suppressWarnings(library(randomForest)))
+# MODEL 3) Try a random forrest classifier
+startTime <- Sys.time()
+# cat(format(startTime, "%T"), "building RF model started...\n")
+set.seed(1451)
+mod03.rf <- train(classe ~ ., method='rf', prox=TRUE, data=training)
+# above line took 3 hrs. on my Xeon 16Gb workstation to complete
+endTime <- Sys.time()
+#cat(format(endTime, "%T"), "building RF model FINISHED!\n")
+time.rf.minutes <- endTime - startTime
+units(time.rf.minutes) <- "mins"
+```
+
+```{r rfErrorsAccuracy, cache=TRUE, eval=FALSE}
+# calc in-sample and out-of-sample error
 pred.rf.insample <- predict(mod03.rf, newdata = training)
 pred.rf.oosample <- predict(mod03.rf, newdata = testing)
 acc.rf.insample <- sum(pred.rf.insample == training$classe) / length(training$classe)
 acc.rf.oosample <- sum(pred.rf.oosample == testing$classe) / length(testing$classe)
-# predict test cases using Random Forrest
+
+# read the test cases and predict them
 pred.rf.test.cases <- predict(mod03.rf, newdata = test.cases)
 validation.acc.rf <- sum(pred.rf.test.cases == correct.validation.responses) /
                      length(correct.validation.responses)
+# > pred.rf.test.cases
+# [1] B A B A A E D B A A B C B A E E A B B B
+```
 
-# GBM calculations of IS error, OOS error and accuracy on final test cases
+```{r gbmTrainTest, cache=TRUE, eval=FALSE}
+# MODEL 4) Try a gbm classifier, training parameters determined thru off-line iteration...
+suppressMessages(suppressWarnings(library(gbm)))
+suppressMessages(suppressWarnings(library(survival)))
+suppressMessages(suppressWarnings(library(splines)))
+suppressMessages(suppressWarnings(library(parallel)))
+suppressMessages(suppressWarnings(library(plyr)))
+startTime <- Sys.time()
+#cat(format(startTime, "%T"), "building GBM model started...\n")
+# use 5 repeats of 5-fold cross-validation
+ctrl <- trainControl(method = "repeatedcv", repeats = 5, number = 5)
+set.seed(1477)
+mod04.gbm <- train(classe ~ ., data=training, method='gbm',
+                   verbose=FALSE, trControl = ctrl)
+endTime <- Sys.time()
+#cat(format(endTime, "%T"), "building GBM model FINISHED!\n")
+time.gbm.minutes <- endTime - startTime
+units(time.gbm.minutes) <- "mins"
+```
+
+```{r gbmErrorsAccuracy, cache=TRUE, eval=FALSE}
+# calc in-sample and out-of-sample error
 pred.gbm.insample <- predict(mod04.gbm, newdata = training)
 pred.gbm.oosample <- predict(mod04.gbm, newdata = testing)
 acc.gbm.insample <- sum(pred.gbm.insample == training$classe) / length(training$classe)
 acc.gbm.oosample <- sum(pred.gbm.oosample == testing$classe) / length(testing$classe)
-# predict test cases using GBM
+# predict test cases
 pred.gbm.test.cases <- predict(mod04.gbm, newdata = test.cases)
 validation.acc.gbm <- sum(pred.gbm.test.cases == correct.validation.responses) /
                       length(correct.validation.responses)
+# > pred.gbm.test.cases
+# [1] B A B A A E D B A A B C B A E E A B B B
 ```
-
