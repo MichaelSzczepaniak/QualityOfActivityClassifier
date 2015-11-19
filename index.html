@@ -170,7 +170,7 @@ mod04.gbm &lt;- train(classe ~ ., data=training, method='gbm', verbose=FALSE, tr
 </div>
 <div id="final-model" class="section level2">
 <h2>Final Model</h2>
-<p>Note that the OOB estimate of error rate is little lower than the OOS estimate reported in <strong>Figure 3</strong> above. <a href="http://stackoverflow.com/questions/18541923/what-is-out-of-bag-error-in-random-forests#24663120">This post quotes</a> a paper by Breiman which report emperical evidence that OOB (an in-sample error estimate) is as good as holding out a test set (OOS error estimate). The results I saw are certainly very close.</p>
+<p>Note that the OOB estimate of error rate is little lower than the OOS estimate reported in <strong>Figure 3</strong> above. <a href="http://stackoverflow.com/questions/18541923/what-is-out-of-bag-error-in-random-forests#24663120">This post quotes</a> a paper by Breiman which reports emperical evidence that OOB (an in-sample error estimate) is as good as holding out a test set (OOS error estimate). The results I saw are certainly very close.</p>
 <pre class="r"><code>mod03.rf$finalModel</code></pre>
 <pre><code>## 
 ## Call:
