@@ -346,7 +346,7 @@ As shown in **Figure 3** above, the OOS error rates for the RF and GBM models we
 
 ## Final Model
 
-Note that the OOB estimate of error rate is little lower than the OOS estimate reported in **Figure 3** above.  [This post quotes](http://stackoverflow.com/questions/18541923/what-is-out-of-bag-error-in-random-forests#24663120) a paper by Breiman which report emperical evidence that OOB (an in-sample error estimate) is as good as holding out a test set (OOS error estimate).  The results I saw are certainly very close.
+Note that the OOB estimate of error rate is little lower than the OOS estimate reported in **Figure 3** above.  [This post quotes](http://stackoverflow.com/questions/18541923/what-is-out-of-bag-error-in-random-forests#24663120) a paper by Breiman which reports emperical evidence that OOB (an in-sample error estimate) is as good as holding out a test set (OOS error estimate).  The results I saw are certainly very close.
 
 ```{r finalModel, cache=TRUE}
 mod03.rf$finalModel
