@@ -211,7 +211,7 @@ The code behind all the calculations can be found in [this RMarkdown file](https
 
 ## Variable Selection
 
-The training data was downloaded from [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv) and the testing data [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv).  After downloading the data files, the training data was read and the columns with missing data were removed.  Eliminating the missing and sparsely populated column took the variable count from `r orig.pred.count` down to `r nodata.pred.count`.  The next reduction came from identifying and removing highly correlated variables which took the count from `r nodata.pred.count` down to `r nohighcorr.pred.count`.  The last reduction was the result of removing variables that had either low significance as determined by the *varImp* in caret or just didn't belong in the classifier (user_name, new_window and pitch_arm variables).  
+The training data was downloaded from [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv) and the testing data [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv).  After downloading the data files, the training data was read and the columns with missing data were removed.  Eliminating the missing and sparsely populated column took the variable count from `r orig.pred.count` down to `r nodata.pred.count`.  The next reduction came from identifying and removing highly correlated variables which took the count from `r nodata.pred.count` down to `r nohighcorr.pred.count`.  
 
 Details regarding the variable reduction process are described in [Appendix A](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html) and are summarized in **Figure 1** below.
 
@@ -236,12 +236,13 @@ pFig2 <- pFig2 + annotate("text", x = 2.5, y = 48, color = "blue", angle = 0,
 pFig2
 ```
 
-The `r final.pred.count` variables selected as preditors for each model evaluated are shown below.
+The last reduction was the result of removing variables that had low significance as determined by the *varImp* function in caret.  The variables **user_name**, **new_window** and **pitch_arm variables** were eliminated because they had very lower importance than **gyro_arm_z** as shown in **Figure 2** below.  All of the `r final.pred.count` variables selected as preditors for the final are shown on the y-axis.
 
-```{r}
-names(trimmedActivity3)[-ncol(trimmedActivity3)]
+```{r predictorImportance, cache=TRUE}
+importance <- varImp(mod03.rf, scale=FALSE)
+#print(importance)
+plot(importance, main="Figure 2 - Variable Importance in the Final RF Model")
 ```
-
 
 ## Data Partitioning and Model Builds
 
@@ -276,10 +277,10 @@ Training defaults provided by the *caret* package were used for all models initi
 
 ## Summary of Results
 
-The table in **Figure 2** below summarizes the results of the model selection and evaluation.
+The table in **Figure 3** below summarizes the results of the model selection and evaluation.
 
 ```{r cache=TRUE, echo=FALSE}
-# Figure 2 table summarizing results
+# Figure 3 table summarizing results
 rowNameValues <- c("Build Time (min)", "Model In-Memeory Size (Mb)",
                    "In-Sample Error", "Out-of-Sample Error",
                    "Final Test Accuracy")
@@ -339,6 +340,15 @@ It's worth noting that while the RF model was the most accurate, it took an orde
 
 ## Error Rates
 
-The **In-Sample Error** (IS) rates shown in **Figure 2** were calculated using the predictions from the models built in the **Data Partitioning and Model Builds** section on the **training** data.  The **Out-of-Sample Error** (OOS) rates in the same figure were calculated using the samples held out in the **testing** data set.  The IS error rates were very close to the OOS error rates.  The IS error rates were larger than OOS error rates in 3 of the 4 cases as one would expect.  The RPART anomaly appears to be due to resampling error.
+The **In-Sample Error** (IS) rates shown in **Figure 3** were calculated using the predictions from the models built in the **Data Partitioning and Model Builds** section on the **training** data.  The **Out-of-Sample Error** (OOS) rates in the same figure were calculated using the samples held out in the **testing** data set.  The IS error rates were very close to the OOS error rates.  The IS error rates were larger than OOS error rates in 3 of the 4 cases as one would expect.  The RPART anomaly appears to be due to resampling error.
 
-As shown in **Figure 2** above, the OOS error rates for the RF and GBM models were `r round(1-acc.rf.oosample, 3)` and `r round(1-acc.gbm.oosample, 3)` respectively.  The code used for calculating the IS errors, OOS errors, and final (validation) test accuracy is listed in [Appendix B](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy)
+As shown in **Figure 3** above, the OOS error rates for the RF and GBM models were `r round(1-acc.rf.oosample, 3)` and `r round(1-acc.gbm.oosample, 3)` respectively.  The code used for calculating the IS errors, OOS errors, and final (validation) test accuracy is listed in [Appendix B](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy)
+
+## Final Model
+
+Note that the OOB estimate of error rate is little lower than the OOS estimate reported in **Figure 3** above.  [This post quotes](http://stackoverflow.com/questions/18541923/what-is-out-of-bag-error-in-random-forests#24663120) a paper by Breiman which report emperical evidence that OOB (an in-sample error estimate) is as good as holding out a test set (OOS error estimate).  The results I saw are certainly very close.
+
+```{r finalModel, cache=TRUE}
+mod03.rf$finalModel
+```
+
