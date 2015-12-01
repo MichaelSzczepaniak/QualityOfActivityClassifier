@@ -1,0 +1,14 @@
+# typically laptop specific workspace files
+workspace_*/
+# RData files used for local dev
+*.RData
+*.RHistory
+# directories
+misc/
+*_cache/
+*_html/
+*_files/
+# submission answer files
+problem_id_*.txt
+# spreadsheet used for analysis
+*.ods

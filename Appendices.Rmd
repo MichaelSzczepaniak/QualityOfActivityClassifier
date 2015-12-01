@@ -43,7 +43,7 @@ varsDf
 
 ```
 
-Base on the output above, the following variables were excluded for two reasons. First, `r round(19216/19622, 2) * 100` % of their values were missing. Second, these same variables did were not populated with values in the testing data set (running *getFractionMissing(pml_testing)*).
+Base on the output above, the following variables were excluded for two reasons. First, `r round(19216/19622, 2) * 100` % of their values were missing. Second, these same variables were not populated with values in the testing data set (running *getFractionMissing(pml_testing)*).
 
 kurtosis_roll_belt  
 kurtosis_picth_belt  
@@ -151,9 +151,8 @@ The following code was used to create the data set with only the selected predic
 ```{r eval=FALSE}
 library(caret); library(dplyr)
 varsDf <- getFractionMissing()
-# get column/var names with > 80% of values not empty or NA
+# get column/var names with > 80% of values populated (not empty or NA)
 varsWithData <- filter(varsDf, FractionMissing < 0.20)$columnName
-# varsWithLittleData <- filter(varsDf, FractionMissing > 0.90)$columnName
 # http://stackoverflow.com/questions/10086494#10086494
 trimmedActivity <- subset(rawActitivity, select=varsWithData)
 # This eliminated 100 out of the 160 vars. Turns out that these same

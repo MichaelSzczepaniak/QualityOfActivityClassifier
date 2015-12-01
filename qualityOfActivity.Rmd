@@ -21,10 +21,10 @@ correct.validation.responses <- c("B", "A", "B", "A", "A", "E", "D", "B", "A", "
 ```
 
 
-```{r trimVariables, cache=TRUE, echo=FALSE}
-suppressMessages(suppressWarnings(library(caret)))
-suppressMessages(suppressWarnings(library(dplyr)))
-suppressMessages(suppressWarnings(library(knitr)))
+```{r trimVariables, cache=TRUE, echo=FALSE, warning=FALSE}
+# suppressMessages(suppressWarnings(library(caret)))
+# suppressMessages(suppressWarnings(library(dplyr)))
+# suppressMessages(suppressWarnings(library(knitr)))
 
 ## Creates a data frame based on the input df with three columns:
 ## index, ColumnName and FractionMissing.
@@ -106,8 +106,8 @@ validation.acc.lda <- sum(pred.lda.test.cases == correct.validation.responses) /
 # [1] B A A A C C D D A A D A B A E B A B A B
 ```
 
-```{r rpartTrainTest, cache=TRUE, echo=FALSE}
-suppressMessages(suppressWarnings(library(rpart)))
+```{r rpartTrainTest, cache=TRUE, echo=FALSE, warning=FALSE}
+# suppressMessages(suppressWarnings(library(rpart)))
 # MODEL 2) Try a classification tree using caret training defaults
 startTime <- Sys.time()
 #cat(format(Sys.time(), "%T"), "building CART model started...\n")
@@ -340,7 +340,7 @@ It's worth noting that while the RF model was the most accurate, it took an orde
 
 ## Error Rates
 
-The **In-Sample Error** (IS) rates shown in **Figure 3** were calculated using the predictions from the models built in the **Data Partitioning and Model Builds** section on the **training** data.  The **Out-of-Sample Error** (OOS) rates in the same figure were calculated using the samples held out in the **testing** data set.  The IS error rates were very close to the OOS error rates.  The IS error rates were larger than OOS error rates in 3 of the 4 cases as one would expect.  The RPART anomaly appears to be due to resampling error.
+The **In-Sample Error** (IS) rates shown in **Figure 3** were calculated using the predictions from the models built in the **Data Partitioning and Model Builds** section on the **training** data.  The **Out-of-Sample Error** (OOS) rates in the same figure were calculated using the samples held out in the **testing** data set.  The IS error rates were very close to the OOS error rates.  Because we would expect IS error rates to be smaller than OOS, it was a little unusual to see IS error rates being larger than OOS error rates in 2 of the 4 cases.  I would attribute the LDA and RPART anomalies to resampling error since the differences were very small.
 
 As shown in **Figure 3** above, the OOS error rates for the RF and GBM models were `r round(1-acc.rf.oosample, 3)` and `r round(1-acc.gbm.oosample, 3)` respectively.  The code used for calculating the IS errors, OOS errors, and final (validation) test accuracy is listed in [Appendix B](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy)
 
