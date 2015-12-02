@@ -172,6 +172,7 @@ trimmedActivity3 <- trimmedActivity2[,-4:-2] # remove time stamp info
 # remove user_name and new_window after looking at importance plot (see below)
 trimmedActivity3 <- trimmedActivity3[,-1] # remove user_name
 trimmedActivity3 <- trimmedActivity3[,-1] # remove new_window
+trimmedActivity3 <- trimmedActivity3[,-1] # remove num_window: not user related
 ```
 
 

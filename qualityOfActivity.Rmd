@@ -1,9 +1,17 @@
 ---
 title: "Quality of Activity Classification"
 author: "Michael Szczepaniak"
-date: "November 2015"
+date: "December 2015"
 output: html_document
 ---
+
+```{r setworking, echo=FALSE, eval=FALSE}
+sysDir <- "D:/"       # workstation
+#sysDir <- "C:/data/"  # laptop
+projDir <- "Dropbox/sw_dev/Data_Science_and_ML/Coursera/John Hopkins Data Science Series/08 Practical Machine Learning/QualityOfActivityClassifier"
+setwd(paste0(sysDir, projDir))
+```
+
 
 ## Background
 
@@ -11,7 +19,7 @@ People that are into tracking their personal data with a Jawbone Up, Nike FuelBa
 
 ## Synposis
 
-```{r readExternalData, cache=TRUE, echo=FALSE}
+```{r readExternalData, cache=TRUE, echo=FALSE, warning=FALSE}
 trainFile <- "https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv"
 testFile <- "https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv"
 rawActitivity <- read.csv(trainFile)
@@ -22,10 +30,6 @@ correct.validation.responses <- c("B", "A", "B", "A", "A", "E", "D", "B", "A", "
 
 
 ```{r trimVariables, cache=TRUE, echo=FALSE, warning=FALSE}
-# suppressMessages(suppressWarnings(library(caret)))
-# suppressMessages(suppressWarnings(library(dplyr)))
-# suppressMessages(suppressWarnings(library(knitr)))
-
 ## Creates a data frame based on the input df with three columns:
 ## index, ColumnName and FractionMissing.
 ## index is the column index in df corresponding to ColumnName
@@ -48,7 +52,8 @@ getFractionMissing <- function(df = rawActitivity) {
     
     return(returnDf)
 }
-
+suppressMessages(suppressWarnings(library(caret)))
+suppressMessages(suppressWarnings(library(dplyr)))
 library(caret); library(dplyr)
 varsDf <- getFractionMissing()
 # get column/var names with > 80% of values not empty or NA
@@ -70,12 +75,14 @@ highlyCorrelated <- highlyCorrelated + offset # get cols relative to trimmed df
 trimmedActivity2 <- trimmedActivity[,-highlyCorrelated] # remove highly cor vars
 trimmedActivity2 <- trimmedActivity2[,-1] # 1st col is just an index
 trimmedActivity3 <- trimmedActivity2[,-4:-2] # remove time stamp info
-# remove user_name and new_window after looking at importance plot (see below)
+# remove user_name and new_window after looking at importance plot
 trimmedActivity3 <- trimmedActivity3[,-1] # remove user_name
 trimmedActivity3 <- trimmedActivity3[,-1] # remove new_window
+trimmedActivity3 <- trimmedActivity3[,-1] # remove num_window: not user related
 ```
 
-```{r ldaTrainTest, cache=TRUE, echo=FALSE}
+```{r ldaTrainTest, cache=TRUE, echo=FALSE, warning=FALSE}
+suppressMessages(suppressWarnings(library(MASS)))
 # MODEL 1) Start with fast and simple LDA model using caret training defaults
 set.seed(1447)
 inTrain <- createDataPartition(trimmedActivity3$classe, p=0.60, list=FALSE)
@@ -92,7 +99,7 @@ time.lda.minutes <- endTime - startTime
 units(time.lda.minutes) <- "mins"
 ```
 
-```{r ldaErrorsAccuracy, cache=TRUE, echo=FALSE}
+```{r ldaErrorsAccuracy, cache=TRUE, echo=FALSE, warning=FALSE}
 # calc in-sample and out-of-sample error
 pred.lda.insample <- predict(mod01.lda, newdata = training)
 pred.lda.oosample <- predict(mod01.lda, newdata = testing)
@@ -102,12 +109,12 @@ acc.lda.oosample <- sum(pred.lda.oosample == testing$classe) / length(testing$cl
 pred.lda.test.cases <- predict(mod01.lda, newdata = test.cases)
 validation.acc.lda <- sum(pred.lda.test.cases == correct.validation.responses) /
                       length(correct.validation.responses)
-# > pred01.lda.test.cases
-# [1] B A A A C C D D A A D A B A E B A B A B
+# > pred.lda.test.cases
+# [1] B A A A A C D D A C D A B A E B A E B B
 ```
 
 ```{r rpartTrainTest, cache=TRUE, echo=FALSE, warning=FALSE}
-# suppressMessages(suppressWarnings(library(rpart)))
+suppressMessages(suppressWarnings(library(rpart)))
 # MODEL 2) Try a classification tree using caret training defaults
 startTime <- Sys.time()
 #cat(format(Sys.time(), "%T"), "building CART model started...\n")
@@ -119,7 +126,7 @@ time.rpart.minutes <- endTime - startTime
 units(time.rpart.minutes) <- "mins"
 ```
 
-```{r rpartErrorsAccuracy, cache=TRUE, echo=FALSE}
+```{r rpartErrorsAccuracy, cache=TRUE, echo=FALSE, warning=FALSE}
 # calc in-sample and out-of-sample error
 pred.cart.insample <- predict(mod02.cart, newdata = training)
 pred.cart.oosample <- predict(mod02.cart, newdata = testing)
@@ -130,11 +137,9 @@ acc.cart.oosample <- sum(pred.cart.oosample == testing$classe) / length(testing$
 pred.cart.test.cases <- predict(mod02.cart, newdata = test.cases)
 validation.acc.cart <- sum(pred.cart.test.cases == correct.validation.responses) /
                        length(correct.validation.responses)
-# > pred.cart.test.cases
-#  [1] E C A A A C C C A A B C B A C B E B E B
 ```
 
-```{r rfTrainTest, cache=TRUE, echo=FALSE}
+```{r rfTrainTest, cache=TRUE, echo=FALSE, warning=FALSE}
 suppressMessages(suppressWarnings(library(randomForest)))
 # MODEL 3) Try a random forrest classifier
 startTime <- Sys.time()
@@ -148,7 +153,7 @@ time.rf.minutes <- endTime - startTime
 units(time.rf.minutes) <- "mins"
 ```
 
-```{r rfErrorsAccuracy, cache=TRUE, echo=FALSE}
+```{r rfErrorsAccuracy, cache=TRUE, echo=FALSE, warning=FALSE}
 # calc in-sample and out-of-sample error
 pred.rf.insample <- predict(mod03.rf, newdata = training)
 pred.rf.oosample <- predict(mod03.rf, newdata = testing)
@@ -163,13 +168,8 @@ validation.acc.rf <- sum(pred.rf.test.cases == correct.validation.responses) /
 # [1] B A B A A E D B A A B C B A E E A B B B
 ```
 
-```{r gbmTrainTest, cache=TRUE, echo=FALSE}
+```{r gbmTrainTest, cache=TRUE, echo=FALSE, warning=FALSE}
 # MODEL 4) Try a gbm classifier, training parameters determined thru off-line iteration...
-suppressMessages(suppressWarnings(library(gbm)))
-suppressMessages(suppressWarnings(library(survival)))
-suppressMessages(suppressWarnings(library(splines)))
-suppressMessages(suppressWarnings(library(parallel)))
-suppressMessages(suppressWarnings(library(plyr)))
 startTime <- Sys.time()
 #cat(format(startTime, "%T"), "building GBM model started...\n")
 # use 5 repeats of 5-fold cross-validation
@@ -183,7 +183,7 @@ time.gbm.minutes <- endTime - startTime
 units(time.gbm.minutes) <- "mins"
 ```
 
-```{r gbmErrorsAccuracy, cache=TRUE, echo=FALSE}
+```{r gbmErrorsAccuracy, cache=TRUE, echo=FALSE, warning=FALSE}
 # calc in-sample error
 pred.gbm.insample <- predict(mod04.gbm, newdata = training)
 pred.gbm.oosample <- predict(mod04.gbm, newdata = testing)
@@ -194,29 +194,29 @@ pred.gbm.test.cases <- predict(mod04.gbm, newdata = test.cases)
 validation.acc.gbm <- sum(pred.gbm.test.cases == correct.validation.responses) /
                       length(correct.validation.responses)
 # > pred.gbm.test.cases
-# [1] B A B A A E D B A A B C B A E E A B B B
+# [1] B A B A A E D D A A C C B A E E A B B B
+#     B A B A A E D B A A B C B A E E A B B B
+#                   X     X
 ```
 
-```{r variableCounts, cache=TRUE, echo=FALSE}
+```{r variableCounts, cache=TRUE, echo=FALSE, warning=FALSE}
 orig.pred.count <- ncol(rawActitivity) - 1
 nodata.pred.count <- ncol(trimmedActivity) - 1
 nohighcorr.pred.count <- ncol(trimmedActivity2) - 1
 final.pred.count <- ncol(trimmedActivity3) - 1
 ```
 
-
-A Random Forrest (RF) model with 32 predictors was selected for use to predict 20 final validation test cases.  While the RF model accurately predicted all 20 test cases, a Boosted Tree model (GBM) also was able to predict each of the validation cases correctly.  Two other model types were evaluated as part of the investigation: Linear Discriminant Analysis (LDA) and Recursive Partitioning and Regression Tree (RPART).  The LDA and RPART models were eliminated due to high in-sample error rates (`r 100*(1-round(acc.lda.insample, 3))`% and `r 100*(1-round(acc.cart.insample, 3))`% respectively).  The RF model had a better in-sample error rate compared to GBM (`r 100*(1-round(acc.rf.insample, 5))`% vs. `r 100*(1-round(acc.gbm.insample, 5))`% for GBM), but the RF model took over `r round(time.rf.minutes, 0)` minutes to train using default caret setting while the GBM only took about `r round(time.gbm.minutes, 0)` minutes using 5 repeats of 5-fold cross-validation.  The out-of-sample error rates estimated from the testing hold-outs for the GBM and RF models were `r 100*(1-round(acc.gbm.oosample, 3))`% and `r 100*(1-round(acc.rf.oosample, 3))`% respectively.  The GBM would have been good enough to use on the validation test set.
+A Random Forrest (RF) model with `r final.pred.count` predictors was selected for use to predict 20 final validation test cases.  While the RF model accurately predicted all 20 test cases, a Boosted Tree model (GBM) was able to predict 90% of the validation cases correctly.  Two other model types were evaluated as part of the investigation: Linear Discriminant Analysis (LDA) and Recursive Partitioning and Regression Tree (RPART).  The LDA and RPART models were eliminated due to high in-sample error rates (`r 100*(1-round(acc.lda.insample, 3))`% and `r 100*(1-round(acc.cart.insample, 3))`% respectively).  The RF model had a better in-sample error rate compared to GBM (`r 100*(1-round(acc.rf.insample, 2))`% vs. `r 100*(1-round(acc.gbm.insample, 2))`% for GBM), but the RF model took over `r round(time.rf.minutes, 0)` minutes to train using default caret setting while the GBM only took about `r round(time.gbm.minutes, 0)` minutes using 5 repeats of 5-fold cross-validation.  The out-of-sample error rates estimated from the testing hold-outs for the GBM and RF models were `r 100*(1-round(acc.gbm.oosample, 3))`% and `r 100*(1-round(acc.rf.oosample, 3))`% respectively.
 
 The code behind all the calculations can be found in [this RMarkdown file](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/qualityOfActivity.Rmd).
 
 ## Variable Selection
 
-The training data was downloaded from [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv) and the testing data [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv).  After downloading the data files, the training data was read and the columns with missing data were removed.  Eliminating the missing and sparsely populated column took the variable count from `r orig.pred.count` down to `r nodata.pred.count`.  The next reduction came from identifying and removing highly correlated variables which took the count from `r nodata.pred.count` down to `r nohighcorr.pred.count`.  
+The training data was downloaded from [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-training.csv) and the testing data [here](https://github.com/MichaelSzczepaniak/QualityOfActivityClassifier/raw/master/pml-testing.csv).  Both of these datasets were obtained from the groupware site referred to above.  After downloading the data files, the training data was read and the columns with missing data were removed.  Eliminating the missing and sparsely populated column took the variable count from `r orig.pred.count` down to `r nodata.pred.count`.  The next reduction came from identifying and removing highly correlated variables which took the count from `r nodata.pred.count` down to `r nohighcorr.pred.count`.  The last reduction came from the elimination of variables that should not be used as predictors such as timestamp related information which are not intrisic to the user or the activity.  This final reduction brought the count down to `r final.pred.count`.
 
 Details regarding the variable reduction process are described in [Appendix A](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html) and are summarized in **Figure 1** below.
 
-```{r variableReductionPath, fig.width=8, fig.height=4, cache=TRUE, echo=FALSE}
-suppressMessages(suppressWarnings(library(ggplot2)))
+```{r variableReductionPath, fig.width=8, fig.height=4, cache=TRUE, echo=FALSE, warning=FALSE}
 library(ggplot2)
 iterNum <- c(0:3)
 variableCounts <- c(orig.pred.count, nodata.pred.count, nohighcorr.pred.count, final.pred.count)
@@ -236,11 +236,10 @@ pFig2 <- pFig2 + annotate("text", x = 2.5, y = 48, color = "blue", angle = 0,
 pFig2
 ```
 
-The last reduction was the result of removing variables that had low significance as determined by the *varImp* function in caret.  The variables **user_name**, **new_window** and **pitch_arm variables** were eliminated because they had very lower importance than **gyro_arm_z** as shown in **Figure 2** below.  All of the `r final.pred.count` variables selected as preditors for the final are shown on the y-axis.
+Three of the variables removed in the last reduction were the result of determining that they had low significance.  Quantification of significance was calculated by the *varImp* function in caret.  The variables **user_name**, **new_window** and **pitch_arm variables** were eliminated because they had much lower importance than **gyro_arm_z** shown in **Figure 2** below.  The remaining `r final.pred.count` variables selected as preditors for use in each of the evaluated models are listed on the y-axis of **Figure 2**.
 
-```{r predictorImportance, cache=TRUE}
+```{r predictorImportance, cache=TRUE, warning=FALSE}
 importance <- varImp(mod03.rf, scale=FALSE)
-#print(importance)
 plot(importance, main="Figure 2 - Variable Importance in the Final RF Model")
 ```
 
@@ -248,7 +247,7 @@ plot(importance, main="Figure 2 - Variable Importance in the Final RF Model")
 
 After the predictors were selected, the data was partitioned such that 60% of the data was allocated to the training set and 40% to the test set using the code shown below.
 
-```{r eval=FALSE}
+```{r eval=FALSE, warning=FALSE}
 set.seed(1447)
 inTrain <- createDataPartition(trimmedActivity3$classe, p=0.60, list=FALSE)
 training <- trimmedActivity3[inTrain,]
@@ -257,7 +256,7 @@ testing <- trimmedActivity3[-inTrain,]
 
 Each model was built by passing the **training** set to the *train* function in *caret* package as shown below.  For details see [Appendix B](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy).
 
-```{r eval=FALSE}
+```{r eval=FALSE, warning=FALSE}
 set.seed(374659)
 mod01.lda <- train(classe ~ ., method='lda', data=training)    # LDA model build
 # ...
@@ -279,7 +278,7 @@ Training defaults provided by the *caret* package were used for all models initi
 
 The table in **Figure 3** below summarizes the results of the model selection and evaluation.
 
-```{r cache=TRUE, echo=FALSE}
+```{r buildResultsTable, cache=FALSE, echo=FALSE, warning=FALSE}
 # Figure 3 table summarizing results
 rowNameValues <- c("Build Time (min)", "Model In-Memeory Size (Mb)",
                    "In-Sample Error", "Out-of-Sample Error",
@@ -287,6 +286,7 @@ rowNameValues <- c("Build Time (min)", "Model In-Memeory Size (Mb)",
 # build times will vary by machine, model size was read from environment
 buildTimes <- round(c(time.lda.minutes, time.rpart.minutes,
                       time.rf.minutes, time.gbm.minutes), 2)
+
 modelSizes <- round(c(object.size(mod01.lda)/2^20, object.size(mod02.cart)/2^20,
                       object.size(mod03.rf)/2^20, object.size(mod04.gbm)/2^20), 2)
 isErrors <- round(c((1-acc.lda.insample), (1-acc.cart.insample),
@@ -340,7 +340,7 @@ It's worth noting that while the RF model was the most accurate, it took an orde
 
 ## Error Rates
 
-The **In-Sample Error** (IS) rates shown in **Figure 3** were calculated using the predictions from the models built in the **Data Partitioning and Model Builds** section on the **training** data.  The **Out-of-Sample Error** (OOS) rates in the same figure were calculated using the samples held out in the **testing** data set.  The IS error rates were very close to the OOS error rates.  Because we would expect IS error rates to be smaller than OOS, it was a little unusual to see IS error rates being larger than OOS error rates in 2 of the 4 cases.  I would attribute the LDA and RPART anomalies to resampling error since the differences were very small.
+The **In-Sample Error** (IS) rates shown in **Figure 3** were calculated using the predictions from the models built in the **Data Partitioning and Model Builds** section on the **training** data.  The **Out-of-Sample Error** (OOS) rates in the same figure were calculated using the samples held out in the **testing** data set.  The IS error rates were very close to the OOS error rates.  The OOS error rates were higher than the IS error rates in all cases as would be expected.
 
 As shown in **Figure 3** above, the OOS error rates for the RF and GBM models were `r round(1-acc.rf.oosample, 3)` and `r round(1-acc.gbm.oosample, 3)` respectively.  The code used for calculating the IS errors, OOS errors, and final (validation) test accuracy is listed in [Appendix B](http://michaelszczepaniak.github.io/QualityOfActivityClassifier/Appendices.html#appendix-b---calculation-of-error-and-accuracy)
 
@@ -348,7 +348,7 @@ As shown in **Figure 3** above, the OOS error rates for the RF and GBM models we
 
 Note that the OOB estimate of error rate is little lower than the OOS estimate reported in **Figure 3** above.  [This post quotes](http://stackoverflow.com/questions/18541923/what-is-out-of-bag-error-in-random-forests#24663120) a paper by Breiman which reports emperical evidence that OOB (an in-sample error estimate) is as good as holding out a test set (OOS error estimate).  The results I saw are certainly very close.
 
-```{r finalModel, cache=TRUE}
+```{r finalModel, cache=TRUE, warning=FALSE}
 mod03.rf$finalModel
 ```
 
