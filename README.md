@@ -14,8 +14,8 @@ A Random Forrest (RF) model with 31 predictors was selected for use to predict 2
 
 <ul>
   <li>README.md - This is the file that you are reading now.</li>
-  <li>pml-training.csv - This file was used to train the classifiers being investigated and was generously provide by the folks at <a src=http://groupware.les.inf.puc-rio.br/har>groupware</a>.</li>
-  <li>pml-testing.csv - This file was used for determining out-of-sample (OOS) error for the investigated models.  This data was also provide by <a src=http://groupware.les.inf.puc-rio.br/har>groupware</a>.</li>
+  <li>pml-training.csv - This file was used to train the classifiers being investigated and was generously provide by the folks at <a href=http://groupware.les.inf.puc-rio.br/har>groupware</a>.</li>
+  <li>pml-testing.csv - This file was used for determining out-of-sample (OOS) error for the investigated models.  This data was also provide by <a href=http://groupware.les.inf.puc-rio.br/har>groupware</a>.</li>
   <li>qualityOfActivity.Rmd - This is the R Mardown which included the write up and the R code that does the classification</li>
   <li>qualityOfActivity.html - This the html that the Rmd version of this file was compiled into.  This is the readable version of the report which is hosted <a href=http://michaelszczepaniak.github.io/QualityOfActivityClassifier/>here</a></li>
   <li>Appendices.Rmd - This is the R Markdown used to build Appendix A and B.</li>
