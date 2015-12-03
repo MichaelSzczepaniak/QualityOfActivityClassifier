@@ -1,7 +1,7 @@
 ---
 title: "Quality of Activity - Appendices"
 author: "Michael Szczepaniak"
-date: "November 2015"
+date: "December 2015"
 output: html_document
 ---
 
@@ -213,8 +213,6 @@ acc.lda.oosample <- sum(pred.lda.oosample == testing$classe) / length(testing$cl
 pred.lda.test.cases <- predict(mod01.lda, newdata = test.cases)
 validation.acc.lda <- sum(pred.lda.test.cases == correct.validation.responses) /
                       length(correct.validation.responses)
-# > pred01.lda.test.cases
-# [1] B A A A C C D D A A D A B A E B A B A B
 ```
 
 ```{r rpartTrainTest, cache=TRUE, eval=FALSE}
@@ -241,8 +239,6 @@ acc.cart.oosample <- sum(pred.cart.oosample == testing$classe) / length(testing$
 pred.cart.test.cases <- predict(mod02.cart, newdata = test.cases)
 validation.acc.cart <- sum(pred.cart.test.cases == correct.validation.responses) /
                        length(correct.validation.responses)
-# > pred.cart.test.cases
-#  [1] E C A A A C C C A A B C B A C B E B E B
 ```
 
 ```{r rfTrainTest, cache=TRUE, eval=FALSE}
@@ -271,7 +267,8 @@ pred.rf.test.cases <- predict(mod03.rf, newdata = test.cases)
 validation.acc.rf <- sum(pred.rf.test.cases == correct.validation.responses) /
                      length(correct.validation.responses)
 # > pred.rf.test.cases
-# [1] B A B A A E D B A A B C B A E E A B B B
+# [1] B A B A A E D B A A B C B A E E A B B B  # RF predicted classes
+#     B A B A A E D B A A B C B A E E A B B B  # correct classes
 ```
 
 ```{r gbmTrainTest, cache=TRUE, eval=FALSE}
@@ -305,5 +302,7 @@ pred.gbm.test.cases <- predict(mod04.gbm, newdata = test.cases)
 validation.acc.gbm <- sum(pred.gbm.test.cases == correct.validation.responses) /
                       length(correct.validation.responses)
 # > pred.gbm.test.cases
-# [1] B A B A A E D B A A B C B A E E A B B B
+# [1] B A B A A E D D A A C C B A E E A B B B  # gbm predicted classes
+#     B A B A A E D B A A B C B A E E A B B B  # correct classes
+#                   X     X
 ```

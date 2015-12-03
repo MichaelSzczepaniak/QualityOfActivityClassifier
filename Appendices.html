@@ -63,7 +63,7 @@ img {
 <div id="header">
 <h1 class="title">Quality of Activity - Appendices</h1>
 <h4 class="author"><em>Michael Szczepaniak</em></h4>
-<h4 class="date"><em>November 2015</em></h4>
+<h4 class="date"><em>December 2015</em></h4>
 </div>
 
 
@@ -99,14 +99,13 @@ getFractionMissing &lt;- function(df = rawActitivity) {
 
 varsDf &lt;- getFractionMissing()
 varsDf</code></pre>
-<p>Base on the output above, the following variables were excluded for two reasons. First, 98 % of their values were missing. Second, these same variables did were not populated with values in the testing data set (running <em>getFractionMissing(pml_testing)</em>).</p>
+<p>Base on the output above, the following variables were excluded for two reasons. First, 98 % of their values were missing. Second, these same variables were not populated with values in the testing data set (running <em>getFractionMissing(pml_testing)</em>).</p>
 <p>kurtosis_roll_belt<br />kurtosis_picth_belt<br />kurtosis_yaw_belt<br />skewness_roll_belt<br />skewness_roll_belt.1<br />skewness_yaw_belt<br />max_roll_belt<br />max_picth_belt<br />max_yaw_belt<br />min_roll_belt<br />min_pitch_belt<br />min_yaw_belt<br />amplitude_roll_belt<br />amplitude_pitch_belt<br />amplitude_yaw_belt<br />var_total_accel_belt<br />avg_roll_belt<br />stddev_roll_belt<br />var_roll_belt<br />avg_pitch_belt<br />stddev_pitch_belt<br />var_pitch_belt<br />avg_yaw_belt<br />stddev_yaw_belt<br />var_yaw_belt<br />var_accel_arm<br />avg_roll_arm<br />stddev_roll_arm<br />var_roll_arm<br />avg_pitch_arm<br />stddev_pitch_arm<br />var_pitch_arm<br />avg_yaw_arm<br />stddev_yaw_arm<br />var_yaw_arm<br />kurtosis_roll_arm<br />kurtosis_picth_arm<br />kurtosis_yaw_arm<br />skewness_roll_arm<br />skewness_pitch_arm<br />skewness_yaw_arm<br />max_roll_arm<br />max_picth_arm<br />max_yaw_arm<br />min_roll_arm<br />min_pitch_arm<br />min_yaw_arm<br />amplitude_roll_arm<br />amplitude_pitch_arm<br />amplitude_yaw_arm<br />kurtosis_roll_dumbbell<br />kurtosis_picth_dumbbell<br />kurtosis_yaw_dumbbell<br />skewness_roll_dumbbell<br />skewness_pitch_dumbbell<br />skewness_yaw_dumbbell<br />max_roll_dumbbell<br />max_picth_dumbbell<br />max_yaw_dumbbell<br />min_roll_dumbbell<br />min_pitch_dumbbell<br />min_yaw_dumbbell<br />amplitude_roll_dumbbell<br />amplitude_pitch_dumbbell<br />amplitude_yaw_dumbbell<br />var_accel_dumbbell<br />avg_roll_dumbbell<br />stddev_roll_dumbbell<br />var_roll_dumbbell<br />avg_pitch_dumbbell<br />stddev_pitch_dumbbell<br />var_pitch_dumbbell<br />avg_yaw_dumbbell<br />stddev_yaw_dumbbell<br />var_yaw_dumbbell<br />kurtosis_roll_forearm<br />kurtosis_picth_forearm<br />kurtosis_yaw_forearm<br />skewness_roll_forearm<br />skewness_pitch_forearm<br />skewness_yaw_forearm<br />max_roll_forearm<br />max_picth_forearm<br />max_yaw_forearm<br />min_roll_forearm<br />min_pitch_forearm<br />min_yaw_forearm<br />amplitude_roll_forearm<br />amplitude_pitch_forearm<br />amplitude_yaw_forearm<br />var_accel_forearm<br />avg_roll_forearm<br />stddev_roll_forearm<br />var_roll_forearm<br />avg_pitch_forearm<br />stddev_pitch_forearm<br />var_pitch_forearm<br />avg_yaw_forearm<br />stddev_yaw_forearm<br />var_yaw_forearm</p>
 <p>The following code was used to create the data set with only the selected predictors.</p>
 <pre class="r"><code>library(caret); library(dplyr)
 varsDf &lt;- getFractionMissing()
-# get column/var names with &gt; 80% of values not empty or NA
+# get column/var names with &gt; 80% of values populated (not empty or NA)
 varsWithData &lt;- filter(varsDf, FractionMissing &lt; 0.20)$columnName
-# varsWithLittleData &lt;- filter(varsDf, FractionMissing &gt; 0.90)$columnName
 # http://stackoverflow.com/questions/10086494#10086494
 trimmedActivity &lt;- subset(rawActitivity, select=varsWithData)
 # This eliminated 100 out of the 160 vars. Turns out that these same
@@ -125,7 +124,8 @@ trimmedActivity2 &lt;- trimmedActivity2[,-1] # 1st col is just an index
 trimmedActivity3 &lt;- trimmedActivity2[,-4:-2] # remove time stamp info
 # remove user_name and new_window after looking at importance plot (see below)
 trimmedActivity3 &lt;- trimmedActivity3[,-1] # remove user_name
-trimmedActivity3 &lt;- trimmedActivity3[,-1] # remove new_window</code></pre>
+trimmedActivity3 &lt;- trimmedActivity3[,-1] # remove new_window
+trimmedActivity3 &lt;- trimmedActivity3[,-1] # remove num_window: not user related</code></pre>
 </div>
 <div id="appendix-b---calculation-of-error-and-accuracy" class="section level2">
 <h2>Appendix B - Calculation of Error and Accuracy</h2>
@@ -154,9 +154,7 @@ acc.lda.oosample &lt;- sum(pred.lda.oosample == testing$classe) / length(testing
 # predict test cases
 pred.lda.test.cases &lt;- predict(mod01.lda, newdata = test.cases)
 validation.acc.lda &lt;- sum(pred.lda.test.cases == correct.validation.responses) /
-                      length(correct.validation.responses)
-# &gt; pred01.lda.test.cases
-# [1] B A A A C C D D A A D A B A E B A B A B</code></pre>
+                      length(correct.validation.responses)</code></pre>
 <pre class="r"><code>suppressMessages(suppressWarnings(library(rpart)))
 # MODEL 2) Try a classification tree using caret training defaults
 startTime &lt;- Sys.time()
@@ -176,9 +174,7 @@ acc.cart.oosample &lt;- sum(pred.cart.oosample == testing$classe) / length(testi
 # predict test cases
 pred.cart.test.cases &lt;- predict(mod02.cart, newdata = test.cases)
 validation.acc.cart &lt;- sum(pred.cart.test.cases == correct.validation.responses) /
-                       length(correct.validation.responses)
-# &gt; pred.cart.test.cases
-#  [1] E C A A A C C C A A B C B A C B E B E B</code></pre>
+                       length(correct.validation.responses)</code></pre>
 <pre class="r"><code>suppressMessages(suppressWarnings(library(randomForest)))
 # MODEL 3) Try a random forrest classifier
 startTime &lt;- Sys.time()
@@ -201,7 +197,8 @@ pred.rf.test.cases &lt;- predict(mod03.rf, newdata = test.cases)
 validation.acc.rf &lt;- sum(pred.rf.test.cases == correct.validation.responses) /
                      length(correct.validation.responses)
 # &gt; pred.rf.test.cases
-# [1] B A B A A E D B A A B C B A E E A B B B</code></pre>
+# [1] B A B A A E D B A A B C B A E E A B B B  # RF predicted classes
+#     B A B A A E D B A A B C B A E E A B B B  # correct classes</code></pre>
 <pre class="r"><code># MODEL 4) Try a gbm classifier, training parameters determined thru off-line iteration...
 suppressMessages(suppressWarnings(library(gbm)))
 suppressMessages(suppressWarnings(library(survival)))
@@ -229,7 +226,9 @@ pred.gbm.test.cases &lt;- predict(mod04.gbm, newdata = test.cases)
 validation.acc.gbm &lt;- sum(pred.gbm.test.cases == correct.validation.responses) /
                       length(correct.validation.responses)
 # &gt; pred.gbm.test.cases
-# [1] B A B A A E D B A A B C B A E E A B B B</code></pre>
+# [1] B A B A A E D D A A C C B A E E A B B B  # gbm predicted classes
+#     B A B A A E D B A A B C B A E E A B B B  # correct classes
+#                   X     X</code></pre>
 </div>
 
 

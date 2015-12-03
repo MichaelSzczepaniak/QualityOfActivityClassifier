@@ -107,7 +107,7 @@ set.seed(1451); mod03.rf &lt;- train(classe ~ ., method='rf', prox=TRUE, data=tr
 ctrl &lt;- trainControl(method = &quot;repeatedcv&quot;, repeats = 5, number = 5)
 set.seed(1477)
 mod04.gbm &lt;- train(classe ~ ., data=training, method='gbm', verbose=FALSE, trControl = ctrl)</code></pre>
-<p>Training defaults provided by the <em>caret</em> package were used for all models initially, but it was found that GBM training speed could be improved significantly (from about 30 minutes to about 12 minutes) without losing much accuracy by using the <em>trainControl</em> setting shown above.</p>
+<p>Training defaults provided by the <em>caret</em> package were used for all models initially, but it was found that GBM training speed could be improved significantly (from over 30 minutes to about 10 minutes) without losing much accuracy by using the <em>trainControl</em> settings shown above.</p>
 </div>
 <div id="summary-of-results" class="section level2">
 <h2>Summary of Results</h2>
