@@ -12,3 +12,5 @@ misc/
 problem_id_*.txt
 # spreadsheet used for analysis
 *.ods
+# using Rmd to run all R code, R files only for dev purpose
+*.R
